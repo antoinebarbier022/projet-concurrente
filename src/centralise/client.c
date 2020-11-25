@@ -9,7 +9,7 @@
 #include <string.h>
 
 
-
+// fonction utilisé seulement dans la fonction saisieClavier
 void viderBuffer(){
     int c = 0;
     while (c != '\n' && c != EOF){
@@ -33,7 +33,7 @@ int saisieClavier(char *chaine, int longueur){
     }
 }
 
-// etatSystemeLocal est la copy de l'état du système du server, 
+// etatSystemeLocal est la copie de l'état du système du server, 
 void afficherEtatSysteme(SystemState_s *etatSystemeLocal){
     printf("\nEtat du système :\n");
     for(int i=0;i<etatSystemeLocal->nbSites;i++){
@@ -42,8 +42,39 @@ void afficherEtatSysteme(SystemState_s *etatSystemeLocal){
                 etatSystemeLocal->sites[i].cpu,
                 etatSystemeLocal->sites[i].sto);
     }
-    
+}
 
+void afficherStructureRequete(Modification_m *m){
+    if(m->type == 1){
+        printf("\n[Demande de ressources]");
+    }else{
+        printf("\n[Demande de libération de ressources]");
+    }
+
+    printf("\n En mode exclusif : ");
+    if(m->nbExclusiveMode == 0){
+        printf("\n   [Aucune]");
+    }else{
+        
+        for(int i=0;i<m->nbExclusiveMode;i++){
+            printf("\n   [Site %d] : %d cpu, %.1f Go",   
+                m->exclusiveMode[i].idSite, 
+                m->exclusiveMode[i].cpu,
+                m->exclusiveMode[i].sto);
+        }
+    }
+
+    printf("\n En mode partagé : ");
+    if(m->nbShareMode == 0){
+        printf("\n   [Aucune]");
+    }else{
+        for(int i=0;i<m->nbShareMode;i++){
+            printf("\n   [Site %d] : %d cpu free, %.1f Go free \n",   
+                m->shareMode[i].idSite, 
+                m->shareMode[i].cpu,
+                m->shareMode[i].sto);
+        }
+    }
 }
 
 int main(int argc, char const *argv[]){
@@ -110,7 +141,9 @@ int main(int argc, char const *argv[]){
     //Etape 3 :  Boucle qui attent les demandes de modifications (demande/libération)
     //while(1){
         struct Modification_m modification;
-        // Demande à l'utilisateur ce qu'il veux
+        modification.nbExclusiveMode = 0;
+        modification.nbShareMode = 0;
+        // Demande à l'utilisateur ce qu'il veut
 
         char bufAction[2]; // Buffer qui contiendra la demande de l'action (demande ou libération)
         modification.type = 0;
@@ -123,18 +156,17 @@ int main(int argc, char const *argv[]){
             modification.type = atoi(bufAction); // transforme la chaine de char en int
         }while(modification.type  != 1 && modification.type  != 2 );
 
-        
-        
-        if(modification.type == 1){
-            int id, mode, cpu;
-            float sto;
-  
 
 
+        if(modification.type == 1){ // Pour une demande de ressource
+
+            int inputId, inputMode, inputCpu;
+            float inputSto;
             int response =0; // booleen pour savoir si on refait une autre demande de ressource
             do{
+                printf("\nLa demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
                 printf("Demande de ressource : ");
-                if(scanf("%d %d %d %f",&id,&mode, &cpu,&sto) != 4 ){ // Pour vérifier le format
+                if(scanf("%d %d %d %f",&inputId, &inputMode, &inputCpu, &inputSto) != 4 ){ // Pour vérifier le format
                     // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
                     printf("\nErreur : La demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
                         printf("\t idSite : l'identifiant du site \n");
@@ -144,13 +176,41 @@ int main(int argc, char const *argv[]){
                     exit(1); 
                     
                 }else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
-                    printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", id, cpu, sto, mode);
+                    printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
                       
                     /* faire une vérification de la demande (pour voir si elle est possible à repondre, 
                     par exemple si le site 1 ne possède que 200cpu à l'initialisation du site, 
                     un utilisateur ne pas pas en demandé 300, c'est juste pas possible)*/
 
-                    // après vérification (si erreur annulé la demande)
+                    // après vérification (si erreur : annulé la demande)
+
+
+                        //il faut vérifier que l'identifiant du site est correct
+                        // if ...
+
+                        // il faut vérifier si la demande de ce nombre de cpu et de sto pour ce site est possible
+                        // if ...
+                        if(0){
+                            perror("Erreur : Le nombre de ressource demandé est supérieur au nombre de ressource initialement disponible sur le site\n");
+                            exit(1); 
+                        }
+                    // Sinon on entre la demande
+                    if(inputMode == 1){
+                        modification.nbExclusiveMode++;
+                        modification.exclusiveMode[modification.nbExclusiveMode-1].idSite = inputId;
+                        modification.exclusiveMode[modification.nbExclusiveMode-1].cpu = inputCpu;
+                        modification.exclusiveMode[modification.nbExclusiveMode-1].sto = inputSto;
+                    
+                    }else if(inputMode == 2){
+                        modification.nbShareMode++;
+                        modification.shareMode[modification.nbShareMode-1].idSite = inputId;
+                        modification.shareMode[modification.nbShareMode-1].cpu = inputCpu;
+                        modification.shareMode[modification.nbShareMode-1].sto = inputSto;
+                    }else{
+                        perror("erreur : le mode doit être 1 pour <mode exclusif> ou 2 pour <mode partagé>");
+                        exit(1);
+                    }
+                    
 
                     printf("\nEntre 1 si tu veux faire une autre demande (sinon met autre chose) : ");
                     scanf("%d",&response);
@@ -167,6 +227,8 @@ int main(int argc, char const *argv[]){
                 // si c'est incorrect on annule la demande
                 // sinon on effectue la demande de libération du nombre de ressources demandé
         }
+
+        afficherStructureRequete(&modification);
     //}
 
     // détachement du segment mémoire

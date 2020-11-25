@@ -12,6 +12,7 @@ sur les 10 sites il y aurait 200 places dans le tableau d'utilisation.*/
 
 // information : on ajoute _s après le nom de la variable pour définir que c'est une structure
 typedef struct SystemState_s SystemState_s;
+typedef struct Modification_m Modification_m;
 typedef struct Site_s Site_s;
 typedef struct Use_s Use_s;
 
@@ -54,7 +55,6 @@ struct UseMod_s{
 
 struct Modification_m{
     int type;                       // 1 : demande | 2 : libération
-
     int nbExclusiveMode;            // taille du tableau exclusiveMode
     int nbShareMode;                // taille du tableau shareMode
     struct UseMod_s exclusiveMode[NBMAXUSE];  
