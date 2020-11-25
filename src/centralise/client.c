@@ -6,6 +6,32 @@
 #include <sys/sem.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+
+
+
+void viderBuffer(){
+    int c = 0;
+    while (c != '\n' && c != EOF){
+        c = getchar();
+    }
+}
+ 
+int saisieClavier(char *chaine, int longueur){
+    char *positionEntree = NULL;
+    if (fgets(chaine, longueur, stdin) != NULL){
+        positionEntree = strchr(chaine, '\n');
+        if (positionEntree != NULL){
+            *positionEntree = '\0';
+        }else{
+            viderBuffer();
+        }
+        return 1;
+    }else{
+        viderBuffer();
+        return 0;
+    }
+}
 
 // etatSystemeLocal est la copy de l'état du système du server, 
 void afficherEtatSysteme(SystemState_s *etatSystemeLocal){
@@ -86,31 +112,61 @@ int main(int argc, char const *argv[]){
         struct Modification_m modification;
         // Demande à l'utilisateur ce qu'il veux
 
-        char bufAction[1]; // Buffer de la demande de l'action
+        char bufAction[2]; // Buffer qui contiendra la demande de l'action (demande ou libération)
         modification.type = 0;
         printf("\nVoici les actions possible :\n");
-        printf("  - demande de ressources : 1\n");
-        printf("  - libération de ressources : 2\n");
+        printf("  1 : demande de ressources\n");
+        printf("  2 : libération de ressources\n");
         do{
-            printf("Quelle action voulez-vous effectuer ? (1 ou 2) : ");
-            gets(bufAction); // Récupération de la saisie de l'utilisateur
-            modification.type = atoi(bufAction); // on convertie le char en int
+            printf("\nQuelle action voulez-vous effectuer ? (1 ou 2) : ");
+            saisieClavier(bufAction, 2); // récupère la saisie de l'utilisateur dans le buffer
+            modification.type = atoi(bufAction); // transforme la chaine de char en int
         }while(modification.type  != 1 && modification.type  != 2 );
 
-        printf("La reponse est : %d\n",modification.type);
+        
         
         if(modification.type == 1){
-            //
+            int id, mode, cpu;
+            float sto;
+  
 
-        }else{ // donc on est obligatoirement dans le cas d'une libération
+
+            int response =0; // booleen pour savoir si on refait une autre demande de ressource
+            do{
+                printf("Demande de ressource : ");
+                if(scanf("%d %d %d %f",&id,&mode, &cpu,&sto) != 4 ){ // Pour vérifier le format
+                    // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
+                    printf("\nErreur : La demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
+                        printf("\t idSite : l'identifiant du site \n");
+                        printf("\t mode   : 1 pour le mode exclusif, 2 pour le mode partagé \n");
+                        printf("\t nbCPU  : Le nombre de CPU demandé \n");
+                        printf("\t nbSto  : Le nombre de Go de stockage demandé \n");
+                    exit(1); 
+                    
+                }else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
+                    printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", id, cpu, sto, mode);
+                      
+                    /* faire une vérification de la demande (pour voir si elle est possible à repondre, 
+                    par exemple si le site 1 ne possède que 200cpu à l'initialisation du site, 
+                    un utilisateur ne pas pas en demandé 300, c'est juste pas possible)*/
+
+                    // après vérification (si erreur annulé la demande)
+
+                    printf("\nEntre 1 si tu veux faire une autre demande (sinon met autre chose) : ");
+                    scanf("%d",&response);
+                    if(response != 1 ){ 
+                        response = 0;
+                    }
+                }
+            }while(response);
+
+        }else{ // donc on est obligatoirement dans le cas d'une libération (on aurait pas pu arrivé ici sinon)
             // on regarde si il y a des ressources à libérer
             // si c'est le cas alors on spécifie combien de ressources on veut libérer
                 // vérifie si la demande est correct
                 // si c'est incorrect on annule la demande
                 // sinon on effectue la demande de libération du nombre de ressources demandé
         }
-        
-
     //}
 
     // détachement du segment mémoire
@@ -119,6 +175,8 @@ int main(int argc, char const *argv[]){
         perror("erreur : shmdt -> détachement segment mémoire : état du système");
         exit(1);
     }
+
+    printf("\nFin du Programme \n");
 
     return 0;
 }
