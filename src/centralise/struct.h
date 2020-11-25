@@ -10,11 +10,10 @@ sur les 10 sites il y aurait 200 places dans le tableau d'utilisation.*/
 /* Structure de données pour l'état du système */
 /* ------------------------------------------- */
 
-// information : on ajoute _s après le nom de la variable pour définir que c'est une structure utilisé pour l'état du système
+// information : on ajoute _s après le nom de la variable pour définir que c'est une structure
 typedef struct SystemState_s SystemState_s;
 typedef struct Site_s Site_s;
 typedef struct Use_s Use_s;
-
 
 struct Use_s{
     unsigned int idCustomer;        // identifiant du client
@@ -47,19 +46,19 @@ struct SystemState_s{
 /* Structure de données pour les modifications du système */
 /* ------------------------------------------------------ */
 
-struct Use_m{
+struct UseMod_s{
     unsigned int idSite;        // identifiant du site
     unsigned int cpu;           // Nombre de cpu utilisé par le client 
     float sto;                  // Nombre de Stockage en Go utilisé par le client
 };
 
 struct Modification_m{
-    int type;                   // 1 : demande | 2 : libération
+    int type;                       // 1 : demande | 2 : libération
 
     int nbExclusiveMode;            // taille du tableau exclusiveMode
     int nbShareMode;                // taille du tableau shareMode
-    Use_s exclusiveMode[NBMAXUSE];  
-    Use_s shareMode[NBMAXUSE];
+    struct UseMod_s exclusiveMode[NBMAXUSE];  
+    struct UseMod_s shareMode[NBMAXUSE];
 };
 
 
@@ -69,7 +68,7 @@ struct Modification_m{
 /* Structure de données pour les reponses aux requêtes */
 /* --------------------------------------------------- */
 
-struct Response{
+struct Response_s{
     int type ; // 1 : confirmation | 2 : attente des ressources | 3 : erreur
 };
 
