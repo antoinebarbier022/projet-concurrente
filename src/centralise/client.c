@@ -166,6 +166,7 @@ int main(int argc, char const *argv[]){
             do{
                 printf("\nLa demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
                 printf("Demande de ressource : ");
+
                 if(scanf("%d %d %d %f",&inputId, &inputMode, &inputCpu, &inputSto) != 4 ){ // Pour vérifier le format
                     // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
                     printf("\nErreur : La demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
@@ -213,11 +214,19 @@ int main(int argc, char const *argv[]){
                     
 
                     printf("\nEntre 1 si tu veux faire une autre demande (sinon met autre chose) : ");
-                    scanf("%d",&response);
+
+                    
+                    if(scanf("%d",&response) != 1 ){// si jamais un autre type que %d ou autre chose que 1 est entré
+                        response = 0;
+                    }
                     if(response != 1 ){ 
                         response = 0;
                     }
                 }
+                inputId = 0;
+                inputMode = 0;
+                inputCpu = 0;
+                inputSto = .0;
             }while(response);
 
         }else{ // donc on est obligatoirement dans le cas d'une libération (on aurait pas pu arrivé ici sinon)
