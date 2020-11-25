@@ -65,10 +65,14 @@ int main(int argc, char const *argv[]){
     printf("Exemple : le site de Montpellier possède %d cpu \n", p_att->sites[1].cpu);
     printf("Exemple : le site de Toulouse possède %d cpu \n", p_att->sites[2].cpu);
     // ici -> mettre un unlock 
-    
+
 
     // détachement du segment mémoire
     int dtres = shmdt(p_att); 
+    if(dtres == -1){
+        perror("erreur : shmdt");
+        exit(1);
+    }
 
     // destruction de l'objet IPC
     //shmctl(shm_id,0,IPC_RMID);

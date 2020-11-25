@@ -55,13 +55,17 @@ int main(int argc, char const *argv[]){
     struct SystemState_s etatSystemCopyOnClient = *p_att;
     // ici -> mettre un unlock 
 
-    
+
     afficherEtatSysteme(&etatSystemCopyOnClient);
     
 
 
     // détachement du segment mémoire
     int dtres = shmdt(p_att); 
+    if(dtres == -1){
+        perror("erreur : shmdt");
+        exit(1);
+    }
 
     return 0;
 }
