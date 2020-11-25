@@ -47,17 +47,21 @@ struct SystemState_s{
 /* Structure de données pour les modifications du système */
 /* ------------------------------------------------------ */
 
-struct Modification_m{
-    int type;                   // 1 : demande | 2 : libération
-    struct Use_m *exclusiveMode;
-    struct Use_m *shareMode;
-};
-
 struct Use_m{
     unsigned int idSite;        // identifiant du site
     unsigned int cpu;           // Nombre de cpu utilisé par le client 
     float sto;                  // Nombre de Stockage en Go utilisé par le client
 };
+
+struct Modification_m{
+    int type;                   // 1 : demande | 2 : libération
+
+    int nbExclusiveMode;            // taille du tableau exclusiveMode
+    int nbShareMode;                // taille du tableau shareMode
+    Use_s exclusiveMode[NBMAXUSE];  
+    Use_s shareMode[NBMAXUSE];
+};
+
 
 
 
