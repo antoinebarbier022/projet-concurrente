@@ -67,6 +67,91 @@ void afficherStructureRequete(Modification_s *m){
     }
 }
 
+// Cette fonction demande à l'utilisateur quelle type d'action il veut faire (demande de ressource ou libération)
+// La fonction retourn 1 ou 2 en fonction de l'action demandé
+// 1 pour la demande de ressource et 2 pour la libération
+int demandeTypeAction(){
+    // Demande à l'utilisateur ce qu'il veut
+    char bufAction[2]; // Buffer qui contiendra la demande de l'action (demande ou libération)
+    int type = 0;
+    printf("\nVoici les actions possible :\n");
+    printf("  1 : demande de ressources\n");
+    printf("  2 : libération de ressources\n");
+    do{ // Choix de l'action à effectué (demande de ressource ou bien libération)
+        printf("\nQuelle action voulez-vous effectuer ? (1 ou 2) : ");
+        saisieClavier(bufAction, 2); // récupère la saisie de l'utilisateur dans le buffer
+        type = atoi(bufAction); // transforme la chaine de char en int
+    }while(type  != 1 && type  != 2 );
+    return type;
+}
+
+void demandeDeRessources(Modification_s *m){
+    int inputId, inputMode, inputCpu;
+    float inputSto;
+    int response =0; // booleen pour savoir si on refait une autre demande de ressource
+    do{
+        printf("\nLa demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
+        printf("Demande de ressource : ");
+
+        if(scanf("%d %d %d %f",&inputId, &inputMode, &inputCpu, &inputSto) != 4 ){ // Pour vérifier le format
+            // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
+            printf("\nErreur : La demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
+                printf("\t idSite : l'identifiant du site \n");
+                printf("\t mode   : 1 pour le mode exclusif, 2 pour le mode partagé \n");
+                printf("\t nbCPU  : Le nombre de CPU demandé \n");
+                printf("\t nbSto  : Le nombre de Go de stockage demandé \n");
+            exit(1); 
+            
+        }
+        else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
+            printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
+             { // bloc commentaire
+            /* faire une vérification de la demande (pour voir si elle est possible à repondre, 
+            par exemple si le site 1 ne possède que 200cpu à l'initialisation du site, 
+            un utilisateur ne pas pas en demandé 300, c'est juste pas possible)*/
+
+            // après vérification (si erreur : annulé la demande)
+
+
+                //il faut vérifier que l'identifiant du site est correct
+                // if ...
+
+                // il faut vérifier si la demande de ce nombre de cpu et de sto pour ce site est possible
+                // if ...
+                if(0){
+                    perror("Erreur : Le nombre de ressource demandé est supérieur au nombre de ressource initialement disponible sur le site\n");
+                    exit(1); 
+                }
+             }   
+            
+            // Sinon on entre la demande
+            m->nbDemande++; // on a mtn une première demande
+
+            if(inputMode == 2 || inputMode == 1){
+                m->tabDemande[m->nbDemande - 1].mode = inputMode;
+                m->tabDemande[m->nbDemande - 1].idSite = inputId;
+                m->tabDemande[m->nbDemande - 1].cpu = inputCpu;
+                m->tabDemande[m->nbDemande - 1].sto = inputSto;
+            }else{
+                perror("erreur : le mode doit être 1 pour <mode exclusif> ou 2 pour <mode partagé>");
+                exit(1);
+            }
+
+            printf("\nEntre 1 si tu veux faire une autre demande (sinon met autre chose) : ");
+            if(scanf("%d",&response) != 1 ){// si jamais un autre type que %d ou autre chose que 1 est entré
+                response = 0;
+            }
+            if(response != 1 ){ 
+                response = 0;
+            }
+        }
+    }while(response);
+}
+
+void demandeDeLiberations(Modification_s *m){
+
+}
+
 int main(int argc, char const *argv[]){
     int identifiantClient;
     if(argc != 3){
@@ -137,6 +222,8 @@ int main(int argc, char const *argv[]){
         ressourceLoue.shareMode[i].idSite = -1;
     }
 
+
+
     //Etape 2 : creation du processus secondaire (thread) 
     //          qui se charge d'afficher l'état du système à chaque mise à jour
 
@@ -149,85 +236,19 @@ int main(int argc, char const *argv[]){
 
     //Etape 3 :  Boucle qui attent les demandes de modifications (demande/libération)
     //while(1){
+        // initialisation de la structure de donnée de demande de modification
         struct Modification_s modification;
-        // Demande à l'utilisateur ce qu'il veut
-
-        char bufAction[2]; // Buffer qui contiendra la demande de l'action (demande ou libération)
         modification.type = 0;
         modification.nbDemande = 0;
-        printf("\nVoici les actions possible :\n");
-        printf("  1 : demande de ressources\n");
-        printf("  2 : libération de ressources\n");
-        do{ // Choix de l'action à effectué (demande de ressource ou bien libération)
-            printf("\nQuelle action voulez-vous effectuer ? (1 ou 2) : ");
-            saisieClavier(bufAction, 2); // récupère la saisie de l'utilisateur dans le buffer
-            modification.type = atoi(bufAction); // transforme la chaine de char en int
-        }while(modification.type  != 1 && modification.type  != 2 );
+
+        // Demande à l'utilisateur si il veut demander des ressources ou en libérer
+        modification.type = demandeTypeAction();
+
 
 
 
         if(modification.type == 1){ // Pour une demande de ressource
-
-            int inputId, inputMode, inputCpu;
-            float inputSto;
-            int response =0; // booleen pour savoir si on refait une autre demande de ressource
-            do{
-                printf("\nLa demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
-                printf("Demande de ressource : ");
-
-                if(scanf("%d %d %d %f",&inputId, &inputMode, &inputCpu, &inputSto) != 4 ){ // Pour vérifier le format
-                    // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
-                    printf("\nErreur : La demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
-                        printf("\t idSite : l'identifiant du site \n");
-                        printf("\t mode   : 1 pour le mode exclusif, 2 pour le mode partagé \n");
-                        printf("\t nbCPU  : Le nombre de CPU demandé \n");
-                        printf("\t nbSto  : Le nombre de Go de stockage demandé \n");
-                    exit(1); 
-                    
-                }
-                else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
-                    printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
-                      
-                    /* faire une vérification de la demande (pour voir si elle est possible à repondre, 
-                    par exemple si le site 1 ne possède que 200cpu à l'initialisation du site, 
-                    un utilisateur ne pas pas en demandé 300, c'est juste pas possible)*/
-
-                    // après vérification (si erreur : annulé la demande)
-
-
-                        //il faut vérifier que l'identifiant du site est correct
-                        // if ...
-
-                        // il faut vérifier si la demande de ce nombre de cpu et de sto pour ce site est possible
-                        // if ...
-                        if(0){
-                            perror("Erreur : Le nombre de ressource demandé est supérieur au nombre de ressource initialement disponible sur le site\n");
-                            exit(1); 
-                        }
-                    // Sinon on entre la demande
-                    modification.nbDemande++; // on a mtn une première demande
-
-                    if(inputMode == 2 || inputMode == 1){
-                        modification.tabDemande[modification.nbDemande - 1].mode = inputMode;
-                        modification.tabDemande[modification.nbDemande - 1].idSite = inputId;
-                        modification.tabDemande[modification.nbDemande - 1].cpu = inputCpu;
-                        modification.tabDemande[modification.nbDemande - 1].sto = inputSto;
-                    }else{
-                        perror("erreur : le mode doit être 1 pour <mode exclusif> ou 2 pour <mode partagé>");
-                        exit(1);
-                    }
- 
-                    printf("\nEntre 1 si tu veux faire une autre demande (sinon met autre chose) : ");
-
-                    
-                    if(scanf("%d",&response) != 1 ){// si jamais un autre type que %d ou autre chose que 1 est entré
-                        response = 0;
-                    }
-                    if(response != 1 ){ 
-                        response = 0;
-                    }
-                }
-            }while(response);
+            demandeDeRessources(&modification);
 
         }else{ // donc on est obligatoirement dans le cas d'une libération (on aurait pas pu arrivé ici sinon)
             // on regarde si il y a des ressources à libérer
