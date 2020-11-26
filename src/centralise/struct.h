@@ -69,11 +69,9 @@ struct Modification_s{
 /* Structure de données sauvegarder toutes les ressources loué par le client */
 /* -------------------------------------------------------------------------- */
 
-struct RessourceLoue_s{
-    int nbExclusiveMode;            
-    int nbShareMode;               
-    struct UseMod_s exclusiveMode[NBSITES];  
-    struct UseMod_s shareMode[NBSITES];
+struct RessourceLoue_s{           
+    int nbRessources;               
+    struct UseMod_s tabLocation[NBSITES];  // toutes les ressources actuellement loué 
 };
 
 

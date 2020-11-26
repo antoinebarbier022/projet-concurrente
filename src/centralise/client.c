@@ -218,13 +218,11 @@ int main(int argc, char const *argv[]){
     // on initialise les ressources loué // on place tous les idSite à -1 pour dire qu'il ne sont pas louer
     // après on va le modifier pour initialiser se tableau avec l'état système, pour mettre ceux ou l'id de l'utilisateur est présent
     RessourceLoue_s ressourceLoue;
-    ressourceLoue.nbExclusiveMode = 0;
-    ressourceLoue.nbShareMode = 0;
+    ressourceLoue.nbRessources = 0;
 
     int nbMaxSite = NBSITES;
     for(int i=0;i<nbMaxSite;i++){
-        ressourceLoue.exclusiveMode[i].idSite = -1;
-        ressourceLoue.shareMode[i].idSite = -1;
+        ressourceLoue.tabLocation[i].idSite = -1;
     }
 
 
@@ -266,36 +264,25 @@ int main(int argc, char const *argv[]){
         // On met à jour le tableau local des ressources loué
         // ATTENTION ! il faut que l'état du système ai bien modifier avec la demande du client avant de faire ce code
         if(modification.type == 1){ // c'est une demande donc on la rajoute dans cette structure
+            int siteDemande, modeDemande, cpuDemande;
+            float stoDemande;
             for(int i=0;i<modification.nbDemande;i++){
                 //on recupère 
-                int siteDemande = modification.tabDemande[i].idSite;
-                int modeDemande = modification.tabDemande[i].mode;
-                int cpuDemande = modification.tabDemande[i].cpu;
-                float stoDemande = modification.tabDemande[i].sto;
-                if(modeDemande == 1){ // mode exclusif
-                    // si vrai ça veux dire qu'il qu'on a pas deja louer de ressource sur ce site avec ce mode
-                    if(ressourceLoue.exclusiveMode[siteDemande-1].idSite == -1){
-                        ressourceLoue.exclusiveMode[siteDemande-1].idSite = siteDemande;
-                        ressourceLoue.exclusiveMode[siteDemande-1].mode = modeDemande;
-                        ressourceLoue.exclusiveMode[siteDemande-1].cpu = cpuDemande;
-                        ressourceLoue.exclusiveMode[siteDemande-1].sto = stoDemande;
+                siteDemande = modification.tabDemande[i].idSite;
+                modeDemande = modification.tabDemande[i].mode;
+                cpuDemande = modification.tabDemande[i].cpu;
+                stoDemande = modification.tabDemande[i].sto;
 
-                    }else{
-                        // erreur, on a deja louer des ressources sur ce site on annule la demande
-                        perror("\nErreur : Tu as deja louer une ressource sur ce site, libère là avant");
-                        exit(1);
-                    }
-                }else{ //  mode partagé
-                    if(ressourceLoue.shareMode[siteDemande-1].idSite == -1){
-                        ressourceLoue.shareMode[siteDemande-1].idSite = siteDemande;
-                        ressourceLoue.shareMode[siteDemande-1].mode = modeDemande;
-                        ressourceLoue.shareMode[siteDemande-1].cpu = cpuDemande;
-                        ressourceLoue.shareMode[siteDemande-1].sto = stoDemande;
-                    }else{
-                        // erreur, on a deja louer des ressources sur ce site on annule la demande
-                        perror("\nErreur : Tu as deja louer une ressource sur ce site, libère là avant");
-                        exit(1);
-                    }
+                // si vrai ça veux dire qu'il qu'on a pas deja louer de ressource sur ce site avec ce mode
+                if(ressourceLoue.tabLocation[siteDemande-1].idSite == -1){
+                    ressourceLoue.tabLocation[siteDemande-1].idSite = siteDemande;
+                    ressourceLoue.tabLocation[siteDemande-1].mode = modeDemande;
+                    ressourceLoue.tabLocation[siteDemande-1].cpu = cpuDemande;
+                    ressourceLoue.tabLocation[siteDemande-1].sto = stoDemande;
+                }else{
+                    // erreur, on a deja louer des ressources sur ce site on annule la demande
+                    perror("\nErreur : Tu as deja louer une ressource sur un site que tu demandes, libère là avant");
+                    exit(1);
                 }
             }
         }
