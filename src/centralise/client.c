@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#define NBMAXCLIENT 200
+#define NBSITES 10 
+#define NBDEMANDEMAX 20
 
 // fonction utilisé seulement dans la fonction saisieClavier
 void viderBuffer(){
@@ -44,45 +47,39 @@ void afficherEtatSysteme(SystemState_s *etatSystemeLocal){
     }
 }
 
-void afficherStructureRequete(Modification_m *m){
+void afficherStructureRequete(Modification_s *m){
     if(m->type == 1){
         printf("\n[Demande de ressources]");
     }else{
         printf("\n[Demande de libération de ressources]");
     }
 
-    printf("\n En mode exclusif : ");
-    if(m->nbExclusiveMode == 0){
-        printf("\n   [Aucune]");
-    }else{
-        
-        for(int i=0;i<m->nbExclusiveMode;i++){
-            printf("\n   [Site %d] : %d cpu, %.1f Go",   
-                m->exclusiveMode[i].idSite, 
-                m->exclusiveMode[i].cpu,
-                m->exclusiveMode[i].sto);
-        }
-    }
-
-    printf("\n En mode partagé : ");
-    if(m->nbShareMode == 0){
-        printf("\n   [Aucune]");
-    }else{
-        for(int i=0;i<m->nbShareMode;i++){
-            printf("\n   [Site %d] : %d cpu free, %.1f Go free \n",   
-                m->shareMode[i].idSite, 
-                m->shareMode[i].cpu,
-                m->shareMode[i].sto);
+    for(int i=0;i<m->nbDemande;i++){
+        printf("\n [Site %d] : %d cpu, %.1f Go ",  
+                m->tabDemande[i].idSite, 
+                m->tabDemande[i].cpu, 
+                m->tabDemande[i].sto);
+        if(m->tabDemande[i].mode == 1){
+            printf("[mode exclusif]");
+        }else{
+            printf("[mode partagé]");
         }
     }
 }
 
 int main(int argc, char const *argv[]){
-
-    if(argc != 2){
-        printf("lancement : ./server chemin_fichier_cle\n");
+    int identifiantClient;
+    if(argc != 3){
+        printf("lancement : ./server chemin_fichier_cle idClient\n");
         exit(1);
     }
+    if(atoi(argv[2])>200 || atoi(argv[2])<=0){
+        printf("Erreur lancement : idClient doit être compris entre 1 et %d\n",NBMAXCLIENT);
+        exit(1);
+    }
+    identifiantClient = atoi(argv[2]);
+
+    
 
     // récuperer les identifiants des ipc
     key_t cle = ftok(argv[1], 'r');         // clé du segment mémoire pour l'état du système
@@ -128,6 +125,18 @@ int main(int argc, char const *argv[]){
     semop(sem_id,opLock+1,1); // P sur le semaphore qui sert de lock pour l'état du système
     printf("La copy est terminé\n");
 
+    // on initialise les ressources loué // on place tous les idSite à -1 pour dire qu'il ne sont pas louer
+    // après on va le modifier pour initialiser se tableau avec l'état système, pour mettre ceux ou l'id de l'utilisateur est présent
+    RessourceLoue_s ressourceLoue;
+    ressourceLoue.nbExclusiveMode = 0;
+    ressourceLoue.nbShareMode = 0;
+
+    int nbMaxSite = NBSITES;
+    for(int i=0;i<nbMaxSite;i++){
+        ressourceLoue.exclusiveMode[i].idSite = -1;
+        ressourceLoue.shareMode[i].idSite = -1;
+    }
+
     //Etape 2 : creation du processus secondaire (thread) 
     //          qui se charge d'afficher l'état du système à chaque mise à jour
 
@@ -140,17 +149,16 @@ int main(int argc, char const *argv[]){
 
     //Etape 3 :  Boucle qui attent les demandes de modifications (demande/libération)
     //while(1){
-        struct Modification_m modification;
-        modification.nbExclusiveMode = 0;
-        modification.nbShareMode = 0;
+        struct Modification_s modification;
         // Demande à l'utilisateur ce qu'il veut
 
         char bufAction[2]; // Buffer qui contiendra la demande de l'action (demande ou libération)
         modification.type = 0;
+        modification.nbDemande = 0;
         printf("\nVoici les actions possible :\n");
         printf("  1 : demande de ressources\n");
         printf("  2 : libération de ressources\n");
-        do{
+        do{ // Choix de l'action à effectué (demande de ressource ou bien libération)
             printf("\nQuelle action voulez-vous effectuer ? (1 ou 2) : ");
             saisieClavier(bufAction, 2); // récupère la saisie de l'utilisateur dans le buffer
             modification.type = atoi(bufAction); // transforme la chaine de char en int
@@ -176,7 +184,8 @@ int main(int argc, char const *argv[]){
                         printf("\t nbSto  : Le nombre de Go de stockage demandé \n");
                     exit(1); 
                     
-                }else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
+                }
+                else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
                     printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
                       
                     /* faire une vérification de la demande (pour voir si elle est possible à repondre, 
@@ -196,23 +205,18 @@ int main(int argc, char const *argv[]){
                             exit(1); 
                         }
                     // Sinon on entre la demande
-                    if(inputMode == 1){
-                        modification.nbExclusiveMode++;
-                        modification.exclusiveMode[modification.nbExclusiveMode-1].idSite = inputId;
-                        modification.exclusiveMode[modification.nbExclusiveMode-1].cpu = inputCpu;
-                        modification.exclusiveMode[modification.nbExclusiveMode-1].sto = inputSto;
-                    
-                    }else if(inputMode == 2){
-                        modification.nbShareMode++;
-                        modification.shareMode[modification.nbShareMode-1].idSite = inputId;
-                        modification.shareMode[modification.nbShareMode-1].cpu = inputCpu;
-                        modification.shareMode[modification.nbShareMode-1].sto = inputSto;
+                    modification.nbDemande++; // on a mtn une première demande
+
+                    if(inputMode == 2 || inputMode == 1){
+                        modification.tabDemande[modification.nbDemande - 1].mode = inputMode;
+                        modification.tabDemande[modification.nbDemande - 1].idSite = inputId;
+                        modification.tabDemande[modification.nbDemande - 1].cpu = inputCpu;
+                        modification.tabDemande[modification.nbDemande - 1].sto = inputSto;
                     }else{
                         perror("erreur : le mode doit être 1 pour <mode exclusif> ou 2 pour <mode partagé>");
                         exit(1);
                     }
-                    
-
+ 
                     printf("\nEntre 1 si tu veux faire une autre demande (sinon met autre chose) : ");
 
                     
@@ -223,10 +227,6 @@ int main(int argc, char const *argv[]){
                         response = 0;
                     }
                 }
-                inputId = 0;
-                inputMode = 0;
-                inputCpu = 0;
-                inputSto = .0;
             }while(response);
 
         }else{ // donc on est obligatoirement dans le cas d'une libération (on aurait pas pu arrivé ici sinon)
@@ -237,7 +237,47 @@ int main(int argc, char const *argv[]){
                 // sinon on effectue la demande de libération du nombre de ressources demandé
         }
 
+        
+
+        // On met à jour le tableau local des ressources loué
+        // ATTENTION ! il faut que l'état du système ai bien modifier avec la demande du client avant de faire ce code
+        if(modification.type == 1){ // c'est une demande donc on la rajoute dans cette structure
+            for(int i=0;i<modification.nbDemande;i++){
+                //on recupère 
+                int siteDemande = modification.tabDemande[i].idSite;
+                int modeDemande = modification.tabDemande[i].mode;
+                int cpuDemande = modification.tabDemande[i].cpu;
+                float stoDemande = modification.tabDemande[i].sto;
+                if(modeDemande == 1){ // mode exclusif
+                    // si vrai ça veux dire qu'il qu'on a pas deja louer de ressource sur ce site avec ce mode
+                    if(ressourceLoue.exclusiveMode[siteDemande-1].idSite == -1){
+                        ressourceLoue.exclusiveMode[siteDemande-1].idSite = siteDemande;
+                        ressourceLoue.exclusiveMode[siteDemande-1].mode = modeDemande;
+                        ressourceLoue.exclusiveMode[siteDemande-1].cpu = cpuDemande;
+                        ressourceLoue.exclusiveMode[siteDemande-1].sto = stoDemande;
+
+                    }else{
+                        // erreur, on a deja louer des ressources sur ce site on annule la demande
+                        perror("\nErreur : Tu as deja louer une ressource sur ce site, libère là avant");
+                        exit(1);
+                    }
+                }else{ //  mode partagé
+                    if(ressourceLoue.shareMode[siteDemande-1].idSite == -1){
+                        ressourceLoue.shareMode[siteDemande-1].idSite = siteDemande;
+                        ressourceLoue.shareMode[siteDemande-1].mode = modeDemande;
+                        ressourceLoue.shareMode[siteDemande-1].cpu = cpuDemande;
+                        ressourceLoue.shareMode[siteDemande-1].sto = stoDemande;
+                    }else{
+                        // erreur, on a deja louer des ressources sur ce site on annule la demande
+                        perror("\nErreur : Tu as deja louer une ressource sur ce site, libère là avant");
+                        exit(1);
+                    }
+                }
+            }
+        }
+
         afficherStructureRequete(&modification);
+        
     //}
 
     // détachement du segment mémoire
@@ -247,7 +287,7 @@ int main(int argc, char const *argv[]){
         exit(1);
     }
 
-    printf("\nFin du Programme \n");
+    printf("\n\n\nFin du Programme \n");
 
     return 0;
 }
