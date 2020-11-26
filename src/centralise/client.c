@@ -85,6 +85,7 @@ int demandeTypeAction(){
     return type;
 }
 
+// Cette fonction demande les ressources à louer au client et les places dans la stucture Modification
 void demandeDeRessources(Modification_s *m){
     int inputId, inputMode, inputCpu;
     float inputSto;
@@ -148,9 +149,13 @@ void demandeDeRessources(Modification_s *m){
     }while(response);
 }
 
+// Pas encore fait
+// on devra simplement rentrer le nom du site avec le mode qu'on a louer pour liberer cette location
 void demandeDeLiberations(Modification_s *m){
 
 }
+
+void afficherLiberationsPossible();
 
 int main(int argc, char const *argv[]){
     int identifiantClient;
@@ -207,7 +212,7 @@ int main(int argc, char const *argv[]){
     printf("... Copy en cours ...\n");
     sleep(1);
     // ici -> mettre un unlock 
-    semop(sem_id,opLock+1,1); // P sur le semaphore qui sert de lock pour l'état du système
+    semop(sem_id,opLock+1,1); // V sur le semaphore qui sert de lock pour l'état du système
     printf("La copy est terminé\n");
 
     // on initialise les ressources loué // on place tous les idSite à -1 pour dire qu'il ne sont pas louer
@@ -244,13 +249,11 @@ int main(int argc, char const *argv[]){
         // Demande à l'utilisateur si il veut demander des ressources ou en libérer
         modification.type = demandeTypeAction();
 
-
-
-
         if(modification.type == 1){ // Pour une demande de ressource
             demandeDeRessources(&modification);
-
-        }else{ // donc on est obligatoirement dans le cas d'une libération (on aurait pas pu arrivé ici sinon)
+        }else{ 
+            demandeDeLiberations(&modification);
+            // donc on est obligatoirement dans le cas d'une libération (on aurait pas pu arrivé ici sinon)
             // on regarde si il y a des ressources à libérer
             // si c'est le cas alors on spécifie combien de ressources on veut libérer
                 // vérifie si la demande est correct
