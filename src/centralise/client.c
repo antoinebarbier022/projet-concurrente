@@ -12,30 +12,6 @@
 #define NBSITES 10 
 #define NBDEMANDEMAX 20
 
-// fonction utilisé seulement dans la fonction saisieClavier
-void viderBuffer(){
-    int c = 0;
-    while (c != '\n' && c != EOF){
-        c = getchar();
-    }
-}
- 
-int saisieClavier(char *chaine, int longueur){
-    char *positionEntree = NULL;
-    if (fgets(chaine, longueur, stdin) != NULL){
-        positionEntree = strchr(chaine, '\n');
-        if (positionEntree != NULL){
-            *positionEntree = '\0';
-        }else{
-            viderBuffer();
-        }
-        return 1;
-    }else{
-        viderBuffer();
-        return 0;
-    }
-}
-
 // etatSystemeLocal est la copie de l'état du système du server, 
 void afficherEtatSysteme(SystemState_s *etatSystemeLocal){
     printf("\nEtat du système :\n");
@@ -91,22 +67,28 @@ void afficherRessourcesLoue(RessourceLoue_s *r){
     printf("\n");
 }
 
-// Cette fonction demande à l'utilisateur quelle type d'action il veut faire (demande de ressource ou libération)
-// La fonction retourn 1 ou 2 en fonction de l'action demandé
-// 1 pour la demande de ressource et 2 pour la libération
-int demandeTypeAction(){
-    // Demande à l'utilisateur ce qu'il veut
-    char bufAction[2]; // Buffer qui contiendra la demande de l'action (demande ou libération)
-    int type = 0;
+void messageChoixTypeAction(){
     printf("\nVoici les actions possible :\n");
     printf("  1 : demande de ressources\n");
     printf("  2 : libération de ressources\n");
-    do{ // Choix de l'action à effectué (demande de ressource ou bien libération)
-        printf("\nQuelle action voulez-vous effectuer ? (1 ou 2) : ");
-        saisieClavier(bufAction, 2); // récupère la saisie de l'utilisateur dans le buffer
-        type = atoi(bufAction); // transforme la chaine de char en int
-    }while(type  != 1 && type  != 2 );
-    return type;
+}
+
+// Cette fonction demande à l'utilisateur quelle type d'action il veut faire (demande de ressource ou libération)
+// La fonction retourne 1 ou 2 en fonction de l'action demandé
+// 1 pour la demande de ressource et 2 pour la libération
+int demandeTypeAction(){
+    int type = 0;
+    // Choix de l'action à effectué (demande de ressource ou bien libération)
+    printf("\nQuelle action voulez-vous effectuer ? (1 ou 2) : ");
+    if(scanf("%d",&type) != 1){
+        return -1;
+    }else{
+        if(type == 1 || type == 2){
+            return type;
+        }else{
+            return -1;
+        }
+    }
 }
 
 // Cette fonction demande les ressources à louer au client et les places dans la stucture Modification
@@ -173,13 +155,59 @@ void demandeDeRessources(Modification_s *m){
     }while(response);
 }
 
-// Pas encore fait
-// on devra simplement rentrer le nom du site avec le mode qu'on a louer pour liberer cette location
-void demandeDeLiberations(Modification_s *m){
-
+// on devra simplement rentrer le nom du site
+// renvoie le site à libérer
+int demandeDeLiberations(Modification_s *m, RessourceLoue_s *r){
+    int inputIdSite;
+    printf("\nSur quelle site veux tu libérer les ressources ?\n");
+    if(scanf("%d",&inputIdSite) != 1){
+        printf("Erreur : entrée non attendu");
+         exit(1); 
+    }else{
+        int i = 0;
+        while(i<r->nbRessources){
+            if(r->tabLocation[i].idSite == inputIdSite){
+                // on peut libérer cette ressource car elle a été loué
+                return inputIdSite;
+            }
+            i++;
+        }
+        return -1; // Le site dont on demmande la libération n'a jamais été louer ou n'existe pas
+    }
 }
 
-void afficherLiberationsPossible();
+// on met à jour la struct local qui contient les informations sur les locations en cours
+void updateRessourceLouerLocal(Modification_s *m, RessourceLoue_s *r){
+    // On met à jour le tableau local des ressources loué
+    // ATTENTION ! il faut que l'état du système ai bien modifier avec la demande du client avant de faire ce code
+    if(m->type == 1){ // c'est une demande donc on la rajoute dans cette structure
+        int siteDemande, modeDemande, cpuDemande;
+        float stoDemande;
+        
+        for(int i=0;i<m->nbDemande;i++){
+            //on recupère 
+            siteDemande = m->tabDemande[i].idSite;
+            modeDemande = m->tabDemande[i].mode;
+            cpuDemande = m->tabDemande[i].cpu;
+            stoDemande = m->tabDemande[i].sto;
+
+            // si vrai ça veux dire qu'il qu'on a pas deja louer de ressource sur ce site avec ce mode
+            if(r->tabLocation[siteDemande-1].idSite == -1){
+                r->tabLocation[siteDemande-1].idSite = siteDemande;
+                r->tabLocation[siteDemande-1].mode = modeDemande;
+                r->tabLocation[siteDemande-1].cpu = cpuDemande;
+                r->tabLocation[siteDemande-1].sto = stoDemande;
+                r->nbRessources++;
+            }else{
+                // erreur, on a deja louer des ressources sur ce site on annule la demande
+                perror("\nErreur : Tu as deja louer une ressource sur un site que tu demandes, libère là avant");
+                exit(1);
+            }
+        }
+    }else{ // alors on est dans une libération
+        
+    }
+}
 
 int main(int argc, char const *argv[]){
     int identifiantClient;
@@ -269,13 +297,18 @@ int main(int argc, char const *argv[]){
         modification.nbDemande = 0;
 
         // Demande à l'utilisateur si il veut demander des ressources ou en libérer
-        modification.type = demandeTypeAction();
+        messageChoixTypeAction();
+        int type = demandeTypeAction();
+        if(type == -1){
+            printf("Erreur : Type d'action impossible\n");
+            exit(1); 
+        }else{
+            modification.type = type;
+        }
 
         if(modification.type == 1){ // Pour une demande de ressource
+            
             demandeDeRessources(&modification);
-            afficherStructureRequete(&modification);
-
-            printf("\n\n...Demande terminé\n\n");
         }else{ 
             if(ressourceLoue.nbRessources == 0){ 
                 // Si il n'y a pas encore de ressource loué, on ne peut pas en libérer
@@ -283,54 +316,17 @@ int main(int argc, char const *argv[]){
                 exit(1);
             }else{
                 afficherRessourcesLoue(&ressourceLoue);
-                demandeDeLiberations(&modification);
-                // donc on est obligatoirement dans le cas d'une libération (on aurait pas pu arrivé ici sinon)
-                // on regarde si il y a des ressources à libérer
-                // si c'est le cas alors on spécifie combien de ressources on veut libérer
-                // vérifie si la demande est correct
-                // si c'est incorrect on annule la demande
-                // sinon on effectue la demande de libération du nombre de ressources demandé
-                afficherStructureRequete(&modification);
-
-                printf("\n\n...Demande terminé\n\n");
-            }
-        }
-
-        
-
-        // On met à jour le tableau local des ressources loué
-        // ATTENTION ! il faut que l'état du système ai bien modifier avec la demande du client avant de faire ce code
-        if(modification.type == 1){ // c'est une demande donc on la rajoute dans cette structure
-            int siteDemande, modeDemande, cpuDemande;
-            float stoDemande;
-            
-            for(int i=0;i<modification.nbDemande;i++){
-                //on recupère 
-                siteDemande = modification.tabDemande[i].idSite;
-                modeDemande = modification.tabDemande[i].mode;
-                cpuDemande = modification.tabDemande[i].cpu;
-                stoDemande = modification.tabDemande[i].sto;
-
-                // si vrai ça veux dire qu'il qu'on a pas deja louer de ressource sur ce site avec ce mode
-                if(ressourceLoue.tabLocation[siteDemande-1].idSite == -1){
-                    
-                    ressourceLoue.tabLocation[siteDemande-1].idSite = siteDemande;
-                    ressourceLoue.tabLocation[siteDemande-1].mode = modeDemande;
-                    ressourceLoue.tabLocation[siteDemande-1].cpu = cpuDemande;
-                    ressourceLoue.tabLocation[siteDemande-1].sto = stoDemande;
-                    ressourceLoue.nbRessources++;
-                }else{
-                    // erreur, on a deja louer des ressources sur ce site on annule la demande
-                    perror("\nErreur : Tu as deja louer une ressource sur un site que tu demandes, libère là avant");
-                    exit(1);
+                int site = demandeDeLiberations(&modification,&ressourceLoue);
+                if(site == -1){
+                    printf("Erreur : Libération impossible (le site n'est pas louer ou bien il n'existe pas)");
+                    exit(1); 
                 }
             }
-        }else{ // alors on est dans une libération
-            
         }
-
-        
-        
+        afficherStructureRequete(&modification);
+        printf("\n\n...Demande terminé\n\n");
+        // On met a jour le tableau des ressources louer une fois que le server à accepté de changé l'état du système
+        updateRessourceLouerLocal(&modification,&ressourceLoue);
     }
 
     // détachement du segment mémoire
