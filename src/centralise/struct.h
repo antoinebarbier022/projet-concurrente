@@ -20,6 +20,7 @@ typedef struct Use_s Use_s;
 
 struct Use_s{
     unsigned int idCustomer;        // identifiant du client
+    unsigned int mode;
     unsigned int cpu;               // Nombre de cpu utilisé par le client 
     float sto;                      // Nombre de Stockage en Go utilisé par le client
 };
@@ -30,11 +31,11 @@ struct Site_s{
     float sto; 
     float stoFree;                      // Nombre de Stockage en Go sur le site
     unsigned int cpuFree;               // Nombre de CPU total sur le site
+    unsigned int cpuExclusif;
+    unsigned int maxCpuPartage;
 
-    int nbExclusiveMode;            // taille du tableau exclusiveMode
-    int nbShareMode;                // taille du tableau shareMode
-    Use_s exclusiveMode[NBMAXCLIENT];  // tableau qui contient toute les utilisations en mode exclusif
-    Use_s shareMode[NBMAXCLIENT];      // tableau qui contient toute les utilisations en mode partagé
+    int nbUse;            // taille du tableau
+    Use_s tabUse[NBMAXCLIENT];  // tableau qui contient toute les utilisations
     /*Sur chaque site on a deux tableaux, pour les locations en mode exclusif ou partagé
     Dans ses tableaux, chaque index est reservé pour un client spécifique en fonction de l'id du client
     Un client à un id entre 1 et 200*/
