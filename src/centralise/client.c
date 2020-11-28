@@ -16,20 +16,23 @@
 
 using namespace std;
 
-void initStructModif(Modification_s *m){
+void initStructModif(Modification_s *m, int idC){
+    m->idClient = idC;
     m->type = 0;
     m->nbDemande = 0;
 }
 // on l'appel une fois une modification terminé
-void resetStructModif(Modification_s *m){
+void resetStructModif(Modification_s *m, int idC){
+    m->idClient = idC;
     m->type = 0;
+    m->nbDemande = 0;
     for(int i=0;i<m->nbDemande;i++){
         m->tabDemande[i].idSite = -1;
         m->tabDemande[i].mode = 0;
         m->tabDemande[i].cpu = 0;
         m->tabDemande[i].sto = 0;
     }
-    m->nbDemande = 0;
+
 }
 
 // etatSystemeLocal est la copie de l'état du système du server, 
@@ -39,8 +42,8 @@ void afficherEtatSysteme(SystemState_s *etatSystemeLocal){
     for(int i=0;i<etatSystemeLocal->nbSites;i++){
         printf("  - [Site %d] : %d cpu free, %.1f Go free \n",   
                 etatSystemeLocal->sites[i].id, 
-                etatSystemeLocal->sites[i].cpu,
-                etatSystemeLocal->sites[i].sto);
+                etatSystemeLocal->sites[i].cpuFree,
+                etatSystemeLocal->sites[i].stoFree);
     }
     printf("\033[m");
 }
@@ -214,15 +217,18 @@ int checkRessourcesDispo(SystemState_s* s, Modification_s *m){
 
         // d'abord on regarde pour le stockage
         if((nbStoRestant - nbStoDemande) <0){
+            perror("Sto insuffisant");
             return -1; // nb stockage insuffisant
         }
         // ensuite on regarde pour le cpu
         if(modeDemande == 1){ //exclusif
             if((nbCpuExclusifRestant - nbCpuDemande) < 0){
+                perror("cpuEx insuffisant");
                 return -1; // nb ressources inssufisant
             }
         }else{ // partagé
             if((nbCpuPartageRestant - nbCpuDemande) < 0){
+                perror("cpuSh insuffisant");
                 return -1; // nb ressources inssufisant
             }
         }
@@ -232,9 +238,36 @@ int checkRessourcesDispo(SystemState_s* s, Modification_s *m){
 }
 // on applique la demande sur le segment mémoire
 void traitementDemande(SystemState_s* s, Modification_s *m){
-    printf("\033[106m "); // couleur du texte
-    printf(" Traintement en cours");
-    printf("\033[m");
+
+    printf("\n Traintement en cours\n");
+
+    int i = 0;
+    int idClient = m->idClient;
+    while(i < m->nbDemande){
+        int idSiteDemande = m->tabDemande[i].idSite;
+        int nbStoDemande = m->tabDemande[i].sto; 
+        int modeDemande = m->tabDemande[i].mode; 
+        int nbCpuDemande = m->tabDemande[i].cpu; 
+        printf("\n Demande sur le site %d -> %d sto, mode : %d, %d cpu \n",idSiteDemande, nbStoDemande, modeDemande, nbCpuDemande);
+
+        s->sites[idSiteDemande-1].stoFree -= nbStoDemande;
+        if(modeDemande == 1){ // exclusif
+            s->sites[idSiteDemande-1].cpuExclusif += nbCpuDemande;
+            s->sites[idSiteDemande-1].cpuFree -= nbCpuDemande;
+        }else{
+            if(s->sites[idSiteDemande-1].maxCpuPartage < nbCpuDemande){
+                s->sites[idSiteDemande-1].cpuFree -= nbCpuDemande - s->sites[idSiteDemande-1].maxCpuPartage;
+                s->sites[idSiteDemande-1].maxCpuPartage = nbCpuDemande;
+            }
+        }
+        
+        printf("\n Le client %d à loué %d cpu en mode : %d et %d Go sur le site %d ->  \n",idClient,nbCpuDemande,modeDemande,nbStoDemande, idSiteDemande);
+
+        i++;
+    }
+    printf("\n Fin du Traintement\n");
+    
+
 
     return ;
 }
@@ -306,7 +339,7 @@ int main(int argc, char const *argv[]){
     
 
     // récuperer les identifiants des ipc
-    key_t cle = ftok(argv[1], 't');         // clé du segment mémoire pour l'état du système
+    key_t cle = ftok(argv[1], 'z');         // clé du segment mémoire pour l'état du système
     key_t cle_sem = ftok(argv[1], 'u');     // clé du tableau de sémaphore
 
     // identification du segment mémoire
@@ -373,12 +406,12 @@ int main(int argc, char const *argv[]){
 
     // initialisation de la structure de donnée de demande de modification
     struct Modification_s modification;
-    initStructModif(&modification);
+    initStructModif(&modification, identifiantClient);
 
     //Etape 3 :  Boucle qui attent les demandes de modifications (demande/libération)
     
         // on reset à chaque nouvelle demande de modification
-        resetStructModif(&modification);
+        resetStructModif(&modification, identifiantClient);
 
         // Demande à l'utilisateur si il veut demander des ressources ou en libérer
         messageChoixTypeAction();
@@ -453,11 +486,10 @@ int main(int argc, char const *argv[]){
             }
         }
 
-        
-
         //unlock
         semop(sem_id,opLock+1,1); // V sur le semaphore qui sert de lock pour l'état du système
 
+        afficherEtatSysteme(p_att); // afficher le distant
         printf("\n\n...Demande terminé\n\n");
         // On met a jour le tableau des ressources louer une fois que le server à accepté de changé l'état du système
         updateRessourceLouerLocal(&modification,&ressourceLoue);

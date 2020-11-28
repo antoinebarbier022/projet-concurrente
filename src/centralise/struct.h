@@ -19,20 +19,20 @@ typedef struct Site_s Site_s;
 typedef struct Use_s Use_s;
 
 struct Use_s{
-    unsigned int idCustomer;        // identifiant du client
-    unsigned int mode;
-    unsigned int cpu;               // Nombre de cpu utilisé par le client 
+    int idCustomer;        // identifiant du client
+    int mode;
+    int cpu;               // Nombre de cpu utilisé par le client 
     float sto;                      // Nombre de Stockage en Go utilisé par le client
 };
 
 struct Site_s{
-    unsigned int id;                // identifiant du site
-    unsigned int cpu;               // Nombre de CPU total sur le site
+    int id;                // identifiant du site
+    int cpu;               // Nombre de CPU total sur le site
     float sto; 
+    int cpuFree;               // Nombre de CPU total sur le site
     float stoFree;                      // Nombre de Stockage en Go sur le site
-    unsigned int cpuFree;               // Nombre de CPU total sur le site
-    unsigned int cpuExclusif;
-    unsigned int maxCpuPartage;
+    int cpuExclusif;
+    int maxCpuPartage;
 
     int nbUse;            // taille du tableau
     Use_s tabUse[NBMAXCLIENT];  // tableau qui contient toute les utilisations
@@ -57,13 +57,14 @@ struct SystemState_s{
 
 struct UseMod_s{
     int idSite;        // identifiant du site 
-    unsigned int mode;
-    unsigned int cpu;           // Nombre de cpu utilisé par le client 
+    int mode;
+    int cpu;           // Nombre de cpu utilisé par le client 
     float sto;                  // Nombre de Stockage en Go utilisé par le client
 };
 
 struct Modification_s{
     int type;                       // 1 : demande | 2 : libération
+    int idClient;
     int nbDemande;            // taille du tableau exclusiveMode
     struct UseMod_s tabDemande[NBDEMANDEMAX];  // ici on place juste à la suite les une des autres les UseMod_s, l'index ne correspond pas au site
 };

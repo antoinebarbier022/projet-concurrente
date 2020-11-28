@@ -6,12 +6,14 @@
 #include <sys/sem.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <iostream>
 
 
 typedef struct SystemState_s SystemState_s;
 typedef struct Site_s Site_s;
 typedef struct Use_s Use_s;
 
+using namespace std;
 
 int main(int argc, char const *argv[]){
 
@@ -23,7 +25,7 @@ int main(int argc, char const *argv[]){
 
 
     // récuperer les identifiants des ipc
-    key_t cle = ftok(argv[1], 't');         // clé du segment mémoire pour l'état du système
+    key_t cle = ftok(argv[1], 'z');         // clé du segment mémoire pour l'état du système
     key_t cle_sem = ftok(argv[1], 'u');     // clé du tableau de sémaphore
 
     // identification du segment mémoire pour l'état su système
@@ -103,9 +105,9 @@ int main(int argc, char const *argv[]){
     - Montpellier (id : 2, cpu : 64, sto : 1400),
     - Toulouse (id : 2, cpu : 64, sto : 1400)
     */
-    Site_s lyon = {1, 128, 2000, 128, 2000};
-    Site_s montpellier = {2, 64, 1400,64, 1400};
-    Site_s Toulouse = {3, 128, 1400,128, 1400};
+    Site_s lyon = {1, 128, 2000, 128, 2000, 0, 0};
+    Site_s montpellier = {2, 64, 1400, 64, 1400, 0, 0};
+    Site_s Toulouse = {3, 128, 1400, 128, 1400, 0, 0};
     
     // initialisation de l'état du système à l'intérieur du segment mémoire
 
@@ -133,7 +135,11 @@ int main(int argc, char const *argv[]){
     }
 
     // destruction de l'objet IPC
-    //shmctl(shm_id,0,IPC_RMID);
+    int touche;
+    cout << "Appuyer sur une touche pour arreté le server ..." << endl;
+    cin >> touche;
+    
+    shmctl(shm_id,0,IPC_RMID);
 
     return 0;
 }
