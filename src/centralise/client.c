@@ -67,6 +67,29 @@ void afficherStructureRequete(Modification_s *m){
     }
 }
 
+void afficherRessourcesLoue(RessourceLoue_s *r){
+    printf("\nRessource loués :");
+    if(r->nbRessources == 0){
+        int nbSite = NBSITES;
+        for(int i=0;i<nbSite;i++){
+            if(r->tabLocation[i].idSite != -1){
+                printf("\n [Site %d] : %d cpu, %.1f Go ",  
+                    r->tabLocation[i].idSite, 
+                    r->tabLocation[i].cpu, 
+                    r->tabLocation[i].sto);
+                if(r->tabLocation[i].mode == 1){
+                    printf("[mode exclusif]");
+                }else{
+                    printf("[mode partagé]");
+                }
+            }
+        }
+    }else{
+        printf(" Aucune");
+    }
+    printf("\n");
+}
+
 // Cette fonction demande à l'utilisateur quelle type d'action il veut faire (demande de ressource ou libération)
 // La fonction retourn 1 ou 2 en fonction de l'action demandé
 // 1 pour la demande de ressource et 2 pour la libération
@@ -250,13 +273,20 @@ int main(int argc, char const *argv[]){
         if(modification.type == 1){ // Pour une demande de ressource
             demandeDeRessources(&modification);
         }else{ 
-            demandeDeLiberations(&modification);
-            // donc on est obligatoirement dans le cas d'une libération (on aurait pas pu arrivé ici sinon)
-            // on regarde si il y a des ressources à libérer
-            // si c'est le cas alors on spécifie combien de ressources on veut libérer
+            if(ressourceLoue.nbRessources == 0){ 
+                // Si il n'y a pas encore de ressource loué, on ne peut pas en libérer
+                printf("\nErreur : Impossible de liberer des ressources : Aucune ressource loué\n");
+                exit(1);
+            }else{
+                afficherRessourcesLoue(&ressourceLoue);
+                demandeDeLiberations(&modification);
+                // donc on est obligatoirement dans le cas d'une libération (on aurait pas pu arrivé ici sinon)
+                // on regarde si il y a des ressources à libérer
+                // si c'est le cas alors on spécifie combien de ressources on veut libérer
                 // vérifie si la demande est correct
                 // si c'est incorrect on annule la demande
                 // sinon on effectue la demande de libération du nombre de ressources demandé
+            }
         }
 
         
@@ -285,6 +315,8 @@ int main(int argc, char const *argv[]){
                     exit(1);
                 }
             }
+        }else{ // alors on est dans une libération
+            
         }
 
         afficherStructureRequete(&modification);

@@ -84,5 +84,3 @@ struct Response_s{
 };
 
 #endif
-
-
