@@ -202,30 +202,40 @@ int checkDemandeValide(SystemState_s* s, Modification_s *m){
 int checkRessourcesDispo(SystemState_s* s, Modification_s *m){
     int i = 0;
     while(i < m->nbDemande){
-        // test la validité du site
+        // test de la disponibilité des ressources
+        int nbStoDemande = m->tabDemande[i].sto; 
+        int modeDemande = m->tabDemande[i].mode; 
+        int nbCpuDemande = m->tabDemande[i].cpu; 
+
         int idSiteDemande = m->tabDemande[i].idSite;
-        if(idSiteDemande < s->nbSites && idSiteDemande > 0){
-            if(m->tabDemande[i].cpu < s->sites[idSiteDemande - 1].cpu && m->tabDemande[i].cpu > 0){
-                if(m->tabDemande[i].sto < s->sites[idSiteDemande - 1].sto && m->tabDemande[i].sto > 0){
-                    return 1;
-                }else{
-                    return -1;
-                }
-            }else{
-                return -1; // impossible car le nombre de cpu ne pourra jamais être offert
+        int nbCpuExclusifRestant = s->sites[idSiteDemande-1].cpu - (s->sites[idSiteDemande-1].cpuExclusif + s->sites[idSiteDemande-1].maxCpuPartage);
+        int nbCpuPartageRestant = nbCpuExclusifRestant + s->sites[idSiteDemande-1].maxCpuPartage;
+        int nbStoRestant = s->sites[idSiteDemande-1].stoFree;
+
+        // d'abord on regarde pour le stockage
+        if((nbStoRestant - nbStoDemande) <0){
+            return -1; // nb stockage insuffisant
+        }
+        // ensuite on regarde pour le cpu
+        if(modeDemande == 1){ //exclusif
+            if((nbCpuExclusifRestant - nbCpuDemande) < 0){
+                return -1; // nb ressources inssufisant
             }
-        }else{
-            return -1; // impossible de traiter la demande car l'id du site est invalide
+        }else{ // partagé
+            if((nbCpuPartageRestant - nbCpuDemande) < 0){
+                return -1; // nb ressources inssufisant
+            }
         }
         i++;
     }
-    return 1;
+    return 1; // Si on arrive ici c'est qu'il n'y a pas de problème, toutes les ressources sont dispo
 }
 // on applique la demande sur le segment mémoire
 void traitementDemande(SystemState_s* s, Modification_s *m){
     printf("\033[106m "); // couleur du texte
     printf(" Traintement en cours");
     printf("\033[m");
+
     return ;
 }
 
@@ -439,6 +449,7 @@ int main(int argc, char const *argv[]){
                 traitementDemande(p_att, &modification);
             }else{
                 // il va falloir re essayer quand il y aura une notification et une libération dans le systeme
+                printf("\n On est en attente de dispo de ressource\n");
             }
         }
 
