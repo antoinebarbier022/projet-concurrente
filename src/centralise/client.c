@@ -12,6 +12,22 @@
 #define NBSITES 10 
 #define NBDEMANDEMAX 20
 
+void initStructModif(Modification_s *m){
+    m->type = 0;
+    m->nbDemande = 0;
+}
+// on l'appel une fois une modification terminé
+void resetStructModif(Modification_s *m){
+    m->type = 0;
+    for(int i=0;i<m->nbDemande;i++){
+        m->tabDemande[i].idSite = -1;
+        m->tabDemande[i].mode = 0;
+        m->tabDemande[i].cpu = 0;
+        m->tabDemande[i].sto = 0;
+    }
+    m->nbDemande = 0;
+}
+
 // etatSystemeLocal est la copie de l'état du système du server, 
 void afficherEtatSysteme(SystemState_s *etatSystemeLocal){
     printf("\nEtat du système :\n");
@@ -257,12 +273,14 @@ int main(int argc, char const *argv[]){
       - afficher l'état du système mis à jour */
     afficherEtatSysteme(&etatSystemCopyOnClient);
 
+    // initialisation de la structure de donnée de demande de modification
+    struct Modification_s modification;
+    initStructModif(&modification);
+
     //Etape 3 :  Boucle qui attent les demandes de modifications (demande/libération)
-    while(1){
-        // initialisation de la structure de donnée de demande de modification
-        struct Modification_s modification;
-        modification.type = 0;
-        modification.nbDemande = 0;
+    
+        // on reset à chaque nouvelle demande de modification
+        resetStructModif(&modification);
 
         // Demande à l'utilisateur si il veut demander des ressources ou en libérer
         messageChoixTypeAction();
@@ -321,7 +339,7 @@ int main(int argc, char const *argv[]){
         printf("\n\n...Demande terminé\n\n");
         // On met a jour le tableau des ressources louer une fois que le server à accepté de changé l'état du système
         updateRessourceLouerLocal(&modification,&ressourceLoue);
-    }
+    
 
     // détachement du segment mémoire
     int dtres = shmdt(p_att); 
