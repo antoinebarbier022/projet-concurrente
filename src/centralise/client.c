@@ -34,6 +34,7 @@ void resetStructModif(Modification_s *m){
 
 // etatSystemeLocal est la copie de l'état du système du server, 
 void afficherEtatSysteme(SystemState_s *etatSystemeLocal){
+    printf("\033[36m "); // couleur du texte
     printf("\nEtat du système :\n");
     for(int i=0;i<etatSystemeLocal->nbSites;i++){
         printf("  - [Site %d] : %d cpu free, %.1f Go free \n",   
@@ -41,9 +42,11 @@ void afficherEtatSysteme(SystemState_s *etatSystemeLocal){
                 etatSystemeLocal->sites[i].cpu,
                 etatSystemeLocal->sites[i].sto);
     }
+    printf("\033[m");
 }
 
 void afficherStructureRequete(Modification_s *m){
+    printf("\033[32m "); // couleur du texte
     if(m->type == 1){
         printf("\n[Demande de ressources]");
     }else{
@@ -62,9 +65,12 @@ void afficherStructureRequete(Modification_s *m){
         }
     }
     printf("\n");
+    printf("\033[m");
+    printf("\n");
 }
 
 void afficherRessourcesLoue(RessourceLoue_s *r){
+    printf("\033[35m "); // couleur du texte
     printf("\nRessource loués :");
     if(r->nbRessources != 0){
         int nbSite = NBSITES;
@@ -85,6 +91,7 @@ void afficherRessourcesLoue(RessourceLoue_s *r){
         printf(" Aucune");
     }
     printf("\n");
+    printf("\033[m");
 }
 
 void messageChoixTypeAction(){
@@ -97,17 +104,14 @@ void messageChoixTypeAction(){
 // La fonction retourne 1 ou 2 en fonction de l'action demandé
 // 1 pour la demande de ressource et 2 pour la libération
 int demandeTypeAction(){
-    int type = 0;
+    char type[10];
     // Choix de l'action à effectué (demande de ressource ou bien libération)
     printf("\nQuelle action voulez-vous effectuer ? (1 ou 2) : ");
-    if(scanf("%d",&type) != 1){
-        return -1;
+    cin.getline(type,10);
+    if(type[0] == '2' || type[0] == '1'){
+        return atoi(type);
     }else{
-        if(type == 1 || type == 2){
-            return type;
-        }else{
-            return -1;
-        }
+        return -1;
     }
 }
 
@@ -117,8 +121,8 @@ void demandeDeRessources(Modification_s *m){
     float inputSto;
     printf("\nLa demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
     printf("Demande de ressource : ");
-
-    if(scanf("%d %d %d %f",&inputId, &inputMode, &inputCpu, &inputSto) != 4 ){ // Pour vérifier le format
+    cin >> inputId >> inputMode >> inputCpu >> inputSto;
+    if(!cin){
         // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
         printf("\nErreur : La demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
             printf("\t idSite : l'identifiant du site \n");
@@ -131,6 +135,10 @@ void demandeDeRessources(Modification_s *m){
         //printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
         // Sinon on entre la demande
         m->nbDemande++; // on a mtn une première demande
+        if(m->nbDemande >= NBDEMANDEMAX){
+            perror("erreur : le nombre de demande ne peux pas être supérieur au nombre de site.\n");
+            exit(1); 
+        }
         if(inputMode == 2 || inputMode == 1){
             m->tabDemande[m->nbDemande - 1].mode = inputMode;
             m->tabDemande[m->nbDemande - 1].idSite = inputId;
@@ -162,6 +170,63 @@ int demandeDeLiberations(Modification_s *m, RessourceLoue_s *r){
         }
         return -1; // Le site dont on demmande la libération n'a jamais été louer ou n'existe pas
     }
+}
+
+// verification si c'est possible de mettre à jour le système avec la demande
+// retour :
+//   - 1 = les ressources sont dispo pour la demande
+//   - 2 =  attente car les ressources ne sont pas dispo pour la demande
+//   - -1 = erreur, la demande est impossible dans tous les cas
+int checkDemandeValide(SystemState_s* s, Modification_s *m){
+    int i = 0;
+    while(i < m->nbDemande){
+        // test la validité du site
+        int idSiteDemande = m->tabDemande[i].idSite;
+        if(idSiteDemande < s->nbSites && idSiteDemande > 0){
+            if(m->tabDemande[i].cpu < s->sites[idSiteDemande - 1].cpu && m->tabDemande[i].cpu > 0){
+                if(m->tabDemande[i].sto < s->sites[idSiteDemande - 1].sto && m->tabDemande[i].sto > 0){
+                    return 1;
+                }else{
+                    return -1;
+                }
+            }else{
+                return -1; // impossible car le nombre de cpu ne pourra jamais être offert
+            }
+        }else{
+            return -1; // impossible de traiter la demande car l'id du site est invalide
+        }
+        i++;
+    }
+    return 1;
+}
+int checkRessourcesDispo(SystemState_s* s, Modification_s *m){
+    int i = 0;
+    while(i < m->nbDemande){
+        // test la validité du site
+        int idSiteDemande = m->tabDemande[i].idSite;
+        if(idSiteDemande < s->nbSites && idSiteDemande > 0){
+            if(m->tabDemande[i].cpu < s->sites[idSiteDemande - 1].cpu && m->tabDemande[i].cpu > 0){
+                if(m->tabDemande[i].sto < s->sites[idSiteDemande - 1].sto && m->tabDemande[i].sto > 0){
+                    return 1;
+                }else{
+                    return -1;
+                }
+            }else{
+                return -1; // impossible car le nombre de cpu ne pourra jamais être offert
+            }
+        }else{
+            return -1; // impossible de traiter la demande car l'id du site est invalide
+        }
+        i++;
+    }
+    return 1;
+}
+// on applique la demande sur le segment mémoire
+void traitementDemande(SystemState_s* s, Modification_s *m){
+    printf("\033[106m "); // couleur du texte
+    printf(" Traintement en cours");
+    printf("\033[m");
+    return ;
 }
 
 // on met à jour la struct local qui contient les informations sur les locations en cours
@@ -198,8 +263,24 @@ void updateRessourceLouerLocal(Modification_s *m, RessourceLoue_s *r){
 }
 
 int main(int argc, char const *argv[]){
+    printf("\e[1;1H\e[2J");// efface la console
+    int i, j, n;
 
-    cout << "welcome" << endl;
+    for (i = 0; i < 11; i++) {
+
+        for (j = 0; j < 10; j++) {
+
+        n = 10*i + j;
+
+        if (n > 108) break;
+
+        printf("\033[%dm %3d\033[m", n, n);
+
+        }
+
+        printf("\n");
+
+    }
 
     int identifiantClient;
     if(argc != 3){
@@ -215,7 +296,7 @@ int main(int argc, char const *argv[]){
     
 
     // récuperer les identifiants des ipc
-    key_t cle = ftok(argv[1], 'r');         // clé du segment mémoire pour l'état du système
+    key_t cle = ftok(argv[1], 't');         // clé du segment mémoire pour l'état du système
     key_t cle_sem = ftok(argv[1], 'u');     // clé du tableau de sémaphore
 
     // identification du segment mémoire
@@ -321,7 +402,6 @@ int main(int argc, char const *argv[]){
             }   
             do{
                 demandeDeRessources(&modification);
-
                 printf("\nEntre 1 si tu veux faire une autre demande (sinon met autre chose) : ");
                 if(scanf("%d",&response) != 1 ){// si jamais un autre type que %d ou autre chose que 1 est entré
                     response = 0;
@@ -342,7 +422,31 @@ int main(int argc, char const *argv[]){
                 }
             }
         }
+
+        printf("\e[1;1H\e[2J");// efface la console
+        afficherEtatSysteme(&etatSystemCopyOnClient);
         afficherStructureRequete(&modification);
+
+        //lock
+        semop(sem_id,opLock,1); // P sur le semaphore qui sert de lock pour l'état du système
+        
+        // On regarde d'abord si la demande est valide
+        if(checkDemandeValide(p_att, &modification) == -1){
+            printf("Erreur : La demande est impossible car l'id du site n'est pas valide ou alors le nombre de ressouce demandé ne pourra jamais être disponible\n ");
+            exit(1); 
+        }else{
+            if(checkRessourcesDispo(p_att, &modification) != -1){
+                traitementDemande(p_att, &modification);
+            }else{
+                // il va falloir re essayer quand il y aura une notification et une libération dans le systeme
+            }
+        }
+
+        
+
+        //unlock
+        semop(sem_id,opLock+1,1); // V sur le semaphore qui sert de lock pour l'état du système
+
         printf("\n\n...Demande terminé\n\n");
         // On met a jour le tableau des ressources louer une fois que le server à accepté de changé l'état du système
         updateRessourceLouerLocal(&modification,&ressourceLoue);

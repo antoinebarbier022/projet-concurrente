@@ -27,7 +27,9 @@ struct Use_s{
 struct Site_s{
     unsigned int id;                // identifiant du site
     unsigned int cpu;               // Nombre de CPU total sur le site
-    float sto;                      // Nombre de Stockage en Go sur le site
+    float sto; 
+    float stoFree;                      // Nombre de Stockage en Go sur le site
+    unsigned int cpuFree;               // Nombre de CPU total sur le site
 
     int nbExclusiveMode;            // taille du tableau exclusiveMode
     int nbShareMode;                // taille du tableau shareMode

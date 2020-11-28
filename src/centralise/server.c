@@ -23,7 +23,7 @@ int main(int argc, char const *argv[]){
 
 
     // récuperer les identifiants des ipc
-    key_t cle = ftok(argv[1], 'r');         // clé du segment mémoire pour l'état du système
+    key_t cle = ftok(argv[1], 't');         // clé du segment mémoire pour l'état du système
     key_t cle_sem = ftok(argv[1], 'u');     // clé du tableau de sémaphore
 
     // identification du segment mémoire pour l'état su système
@@ -103,9 +103,9 @@ int main(int argc, char const *argv[]){
     - Montpellier (id : 2, cpu : 64, sto : 1400),
     - Toulouse (id : 2, cpu : 64, sto : 1400)
     */
-    Site_s lyon = {1, 128, 2000};
-    Site_s montpellier = {2, 64, 1400};
-    Site_s Toulouse = {3, 128, 1400};
+    Site_s lyon = {1, 128, 2000, 128, 2000};
+    Site_s montpellier = {2, 64, 1400,64, 1400};
+    Site_s Toulouse = {3, 128, 1400,128, 1400};
     
     // initialisation de l'état du système à l'intérieur du segment mémoire
 
