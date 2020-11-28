@@ -83,13 +83,13 @@ int main(int argc, char const *argv[]){
     };
 
     //initialisation des opérations pour le sémaphore aux modifications (num 1) 
-    struct sembuf opMod[]={
+    /*struct sembuf opMod[]={
         {(u_short)1,(short)-1,SEM_UNDO},
         {(u_short)1,(short)+1,SEM_UNDO}
-    };
+    };*/
 
     //attachement au segement memoire
-    struct SystemState_s* p_att = shmat(shm_id,NULL,0); 
+    struct SystemState_s* p_att = (struct SystemState_s*)shmat(shm_id,NULL,0); 
     if((struct SystemState_s*)p_att == (void*)-1) {
         perror("erreur : shmat -> attachement segment mémoire état du système");
         exit(1);

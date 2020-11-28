@@ -6,7 +6,7 @@ HEADER	= struct.h
 OUT		= exec
 OUTS	= server #out server
 OUTC	= client #out client
-CC	 	= gcc
+CC	 	= g++
 FLAGS	= -g -c -Wall
 LFLAGS	= -lpthread
 

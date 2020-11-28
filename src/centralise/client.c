@@ -7,10 +7,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <iostream>
+#include <unistd.h>
 
 #define NBMAXCLIENT 200
 #define NBSITES 10 
 #define NBDEMANDEMAX 20
+
+using namespace std;
 
 void initStructModif(Modification_s *m){
     m->type = 0;
@@ -194,6 +198,9 @@ void updateRessourceLouerLocal(Modification_s *m, RessourceLoue_s *r){
 }
 
 int main(int argc, char const *argv[]){
+
+    cout << "welcome" << endl;
+
     int identifiantClient;
     if(argc != 3){
         printf("lancement : ./server chemin_fichier_cle idClient\n");
@@ -232,7 +239,7 @@ int main(int argc, char const *argv[]){
     };
 
     //attachement au segement memoire
-    struct SystemState_s* p_att = shmat(shm_id,NULL,0); 
+    struct SystemState_s* p_att = (struct SystemState_s*)shmat(shm_id,NULL,0); 
     if((struct SystemState_s*)p_att == (void*)-1) {
         perror("erreur : shmat -> attachemnt segment mémoire : état du système");
         exit(1);
