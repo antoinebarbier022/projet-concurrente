@@ -33,7 +33,7 @@ int main(int argc, char const *argv[]){
         exit(1);
     }
 
-    // identification d'un tableau de 2 sémaphore
+    // identification d'un tableau de 2 sémaphores
     // Le semaphore numero 1 sert de lock pour accédé au segment mémoire de l'état du système
     // Le semaphore numero 2 sert pour la notification de la modification de l'état mémoire
     int sem_id = semget(cle_sem, 2, IPC_CREAT|0666);
@@ -49,6 +49,7 @@ int main(int argc, char const *argv[]){
         struct seminfo *__buf;  // cmd= IPC_INFO (sous linux)
     }egCtrl;
 
+    // initialisation des semaphores
     egCtrl.val = 1; // valeur du semaphore
     if(semctl(sem_id, 0, SETVAL, egCtrl) == -1){  // On SETVAL pour le sémaphore numero 1
         perror("erreur : init du semaphore 0");

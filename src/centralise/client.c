@@ -65,11 +65,12 @@ void afficherStructureRequete(Modification_s *m){
             printf("[mode partagé]");
         }
     }
+    printf("\n");
 }
 
 void afficherRessourcesLoue(RessourceLoue_s *r){
     printf("\nRessource loués :");
-    if(r->nbRessources == 0){
+    if(r->nbRessources != 0){
         int nbSite = NBSITES;
         for(int i=0;i<nbSite;i++){
             if(r->tabLocation[i].idSite != -1){
@@ -261,7 +262,7 @@ int main(int argc, char const *argv[]){
     afficherEtatSysteme(&etatSystemCopyOnClient);
 
     //Etape 3 :  Boucle qui attent les demandes de modifications (demande/libération)
-    //while(1){
+    while(1){
         // initialisation de la structure de donnée de demande de modification
         struct Modification_s modification;
         modification.type = 0;
@@ -272,6 +273,9 @@ int main(int argc, char const *argv[]){
 
         if(modification.type == 1){ // Pour une demande de ressource
             demandeDeRessources(&modification);
+            afficherStructureRequete(&modification);
+
+            printf("\n\n...Demande terminé\n\n");
         }else{ 
             if(ressourceLoue.nbRessources == 0){ 
                 // Si il n'y a pas encore de ressource loué, on ne peut pas en libérer
@@ -286,6 +290,9 @@ int main(int argc, char const *argv[]){
                 // vérifie si la demande est correct
                 // si c'est incorrect on annule la demande
                 // sinon on effectue la demande de libération du nombre de ressources demandé
+                afficherStructureRequete(&modification);
+
+                printf("\n\n...Demande terminé\n\n");
             }
         }
 
@@ -296,6 +303,7 @@ int main(int argc, char const *argv[]){
         if(modification.type == 1){ // c'est une demande donc on la rajoute dans cette structure
             int siteDemande, modeDemande, cpuDemande;
             float stoDemande;
+            
             for(int i=0;i<modification.nbDemande;i++){
                 //on recupère 
                 siteDemande = modification.tabDemande[i].idSite;
@@ -305,10 +313,12 @@ int main(int argc, char const *argv[]){
 
                 // si vrai ça veux dire qu'il qu'on a pas deja louer de ressource sur ce site avec ce mode
                 if(ressourceLoue.tabLocation[siteDemande-1].idSite == -1){
+                    
                     ressourceLoue.tabLocation[siteDemande-1].idSite = siteDemande;
                     ressourceLoue.tabLocation[siteDemande-1].mode = modeDemande;
                     ressourceLoue.tabLocation[siteDemande-1].cpu = cpuDemande;
                     ressourceLoue.tabLocation[siteDemande-1].sto = stoDemande;
+                    ressourceLoue.nbRessources++;
                 }else{
                     // erreur, on a deja louer des ressources sur ce site on annule la demande
                     perror("\nErreur : Tu as deja louer une ressource sur un site que tu demandes, libère là avant");
@@ -319,9 +329,9 @@ int main(int argc, char const *argv[]){
             
         }
 
-        afficherStructureRequete(&modification);
         
-    //}
+        
+    }
 
     // détachement du segment mémoire
     int dtres = shmdt(p_att); 
