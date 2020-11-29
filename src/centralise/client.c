@@ -103,7 +103,7 @@ void afficherRessourcesLoue(RessourceLoue_s *r){
         int nbSite = NBSITES;
         for(int i=0;i<nbSite;i++){
             if(r->tabLocation[i].idSite != -1){
-                printf("\n [Site %d] : %d cpu, %.1f Go ",  
+                printf("\n  - [Site %d] : %d cpu, %.1f Go ",  
                     r->tabLocation[i].idSite, 
                     r->tabLocation[i].cpu, 
                     r->tabLocation[i].sto);
@@ -182,7 +182,7 @@ void demandeDeRessources(Modification_s *m){
 // renvoie le site à libérer
 int demandeDeLiberations(Modification_s *m, RessourceLoue_s *r){
     int inputIdSite;
-    printf("\nSur quelle site veux tu libérer les ressources ?\n");
+    printf("\nSur quelle site veux-tu libérer les ressources ? \nSite : ");
     if(scanf("%d",&inputIdSite) != 1){
         printf("Erreur : entrée non attendu");
          exit(1); 
@@ -199,6 +199,39 @@ int demandeDeLiberations(Modification_s *m, RessourceLoue_s *r){
     }
 }
 
+void traitementLiberation(SystemState_s* s,RessourceLoue_s *r, int idClient, int idSiteLiberer){
+    int mode = s->sites[idSiteLiberer-1].tabUse[idClient-1].mode;
+    int cpu = s->sites[idSiteLiberer-1].tabUse[idClient-1].cpu;
+    float sto = s->sites[idSiteLiberer-1].tabUse[idClient-1].sto;
+
+    s->sites[idSiteLiberer-1].stoFree += sto; // on remet le stockage qu'on avait loué
+    if(mode == 1){ // exclusif
+        s->sites[idSiteLiberer-1].cpuExclusif -= cpu; // on enleve le nombre de cpu loué
+        s->sites[idSiteLiberer-1].cpuFree += cpu; // on rajoute nos cpu en dispo
+    }else{
+        // regarder si le nombre cpu loue est le max
+        // si oui alors on cherche le 2 eme maximum
+        if(cpu == s->sites[idSiteLiberer-1].maxCpuPartage){
+            // on doit trouvé le deuxième cpu partagé max pour le faire devenir le max
+            int newCpuMax = 0;
+            for(int i = 0;i<NBMAXCLIENT;i++){
+                if(i != idClient-1){ // On regarde qu'on ne compare pas avec lui même
+                    if(s->sites[idSiteLiberer-1].tabUse[i].isUse){ // il faut qu'un client ai louer des cpu
+                        if(s->sites[idSiteLiberer-1].tabUse[i].mode == 2){ // en mode partagé
+                            if(s->sites[idSiteLiberer-1].tabUse[i].cpu > newCpuMax){ // 
+                                newCpuMax = s->sites[idSiteLiberer-1].tabUse[i].cpu ;
+                            }
+                        }
+                    }
+                }
+            }
+            s->sites[idSiteLiberer-1].cpuFree += (s->sites[idSiteLiberer-1].maxCpuPartage - newCpuMax);
+            s->sites[idSiteLiberer-1].maxCpuPartage = newCpuMax;
+        }
+    }
+    //on remet à 0 le tableau de la structure de donnée de la location du client sur ce site
+    s->sites[idSiteLiberer-1].tabUse[idClient-1] = {0, 0, 0, 0};
+}
 // verification si c'est possible de mettre à jour le système avec la demande
 // retour :
 //   - 1 = les ressources sont dispo pour la demande
@@ -209,7 +242,7 @@ int checkDemandeValide(SystemState_s* s, Modification_s *m){
     while(i < m->nbDemande){
         // test la validité du site
         int idSiteDemande = m->tabDemande[i].idSite;
-        if(idSiteDemande < s->nbSites && idSiteDemande > 0){
+        if(idSiteDemande <= s->nbSites && idSiteDemande > 0){
             if(m->tabDemande[i].cpu < s->sites[idSiteDemande - 1].cpu && m->tabDemande[i].cpu > 0){
                 if(m->tabDemande[i].sto < s->sites[idSiteDemande - 1].sto && m->tabDemande[i].sto > 0){
                     return 1;
@@ -220,6 +253,7 @@ int checkDemandeValide(SystemState_s* s, Modification_s *m){
                 return -1; // impossible car le nombre de cpu ne pourra jamais être offert
             }
         }else{
+            perror("\nID non valide\n");
             return -1; // impossible de traiter la demande car l'id du site est invalide
         }
         i++;
@@ -263,9 +297,7 @@ int checkRessourcesDispo(SystemState_s* s, Modification_s *m){
 
 // on applique la demande sur le segment mémoire
 void traitementDemande(SystemState_s* s, Modification_s *m){
-
-    printf("\n Traintement en cours\n");
-
+    //printf("\n Traintement en cours\n");
     int i = 0;
     int idClient = m->idClient;
     while(i < m->nbDemande){
@@ -273,7 +305,7 @@ void traitementDemande(SystemState_s* s, Modification_s *m){
         float nbStoDemande = m->tabDemande[i].sto; 
         int modeDemande = m->tabDemande[i].mode; 
         int nbCpuDemande = m->tabDemande[i].cpu; 
-        printf("\n Demande sur le site %d -> %f sto, mode : %d, %d cpu \n",idSiteDemande, nbStoDemande, modeDemande, nbCpuDemande);
+        //printf("\n Demande sur le site %d -> %f sto, mode : %d, %d cpu \n",idSiteDemande, nbStoDemande, modeDemande, nbCpuDemande);
 
         s->sites[idSiteDemande-1].stoFree -= nbStoDemande;
         if(modeDemande == 1){ // exclusif
@@ -291,14 +323,11 @@ void traitementDemande(SystemState_s* s, Modification_s *m){
         s->sites[idSiteDemande-1].tabUse[idClient - 1].cpu = nbCpuDemande;
         s->sites[idSiteDemande-1].tabUse[idClient - 1].sto = nbStoDemande;
         
-        printf("\n Le client %d à loué %d cpu en mode : %d et %f Go sur le site %d ->  \n",idClient,nbCpuDemande,modeDemande,nbStoDemande, idSiteDemande);
+        //printf("\n Le client %d à loué %d cpu en mode : %d et %f Go sur le site %d ->  \n",idClient,nbCpuDemande,modeDemande,nbStoDemande, idSiteDemande);
 
         i++;
     }
-    printf("\n Fin du Traintement\n");
-    
-
-
+    //printf("\n Fin du Traintement\n");
     return ;
 }
 
@@ -446,7 +475,7 @@ int main(int argc, char const *argv[]){
         }else{
             modification.type = typeAction;
         }
-
+        int siteALiberer;
         if(modification.type == 1){ // Pour une demande de ressource
             int response = 1;
              { // bloc commentaire
@@ -482,42 +511,51 @@ int main(int argc, char const *argv[]){
                 exit(1);
             }else{
                 afficherRessourcesLoue(&ressourceLoue);
-                int site = demandeDeLiberations(&modification,&ressourceLoue);
-                if(site == -1){
+                siteALiberer = demandeDeLiberations(&modification,&ressourceLoue);
+                if(siteALiberer == -1){
                     printf("Erreur : Libération impossible (le site n'est pas louer ou bien il n'existe pas)");
                     exit(1); 
+                }else{
+                    printf("On va demandé la libération du site %d",siteALiberer);
+                    
                 }
             }
         }
 
         printf("\e[1;1H\e[2J");// efface la console
-        afficherEtatSysteme(&etatSystemCopyOnClient);
+        //afficherEtatSysteme(&etatSystemCopyOnClient);
         afficherStructureRequete(&modification);
 
+        int demandeAccepte = 0; // vrai une fois le traittement fait
         //lock
         semop(sem_id,opLock,1); // P sur le semaphore qui sert de lock pour l'état du système
-        
-        // On regarde d'abord si la demande est valide
-        if(checkDemandeValide(p_att, &modification) == -1){
-            printf("Erreur : La demande est impossible car l'id du site n'est pas valide ou alors le nombre de ressouce demandé ne pourra jamais être disponible\n ");
-            exit(1); 
-        }else{
-            if(checkRessourcesDispo(p_att, &modification) != -1){
-                traitementDemande(p_att, &modification);
+            if(typeAction == 2){
+                traitementLiberation(p_att,&ressourceLoue, identifiantClient, siteALiberer);
             }else{
-                // il va falloir re essayer quand il y aura une notification et une libération dans le systeme
-                printf("\n On est en attente de dispo de ressource\n");
+                // On regarde d'abord si la demande est valide
+                if(checkDemandeValide(p_att, &modification) == -1){
+                    printf("Erreur : La demande est impossible car l'id du site n'est pas valide ou alors le nombre de ressouce demandé ne pourra jamais être disponible\n ");
+                    exit(1); 
+                }else{
+                    if(checkRessourcesDispo(p_att, &modification) != -1){
+                        traitementDemande(p_att, &modification);
+                        demandeAccepte = 1;
+                    }else{
+                        // il va falloir re essayer quand il y aura une notification et une libération dans le systeme
+                        printf("\n On est en attente de dispo de ressource\n");
+                    }
+                }
             }
-        }
+            
 
+            afficherEtatSysteme(p_att); // afficher le distant
         //unlock
         semop(sem_id,opLock+1,1); // V sur le semaphore qui sert de lock pour l'état du système
 
-        afficherEtatSysteme(p_att); // afficher le distant
-        printf("\n\n...Demande terminé\n\n");
-        // On met a jour le tableau des ressources louer une fois que le server à accepté de changé l'état du système
-        updateRessourceLouerLocal(&modification,&ressourceLoue);
-    
+        if(demandeAccepte){
+            // On met a jour le tableau des ressources louer une fois que le server à accepté de changé l'état du système
+            updateRessourceLouerLocal(&modification,&ressourceLoue);
+        }
 
     // détachement du segment mémoire
     int dtres = shmdt(p_att); 

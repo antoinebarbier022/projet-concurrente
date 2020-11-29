@@ -29,7 +29,7 @@ struct Site_s{
     int cpuFree;               // Nombre de CPU total sur le site
     float stoFree;                      // Nombre de Stockage en Go sur le site
     int cpuExclusif;
-    int maxCpuPartage;
+    int maxCpuPartage;          // le nombre max de cpu partager
 
     int nbUse;            // taille du tableau
     Use_s tabUse[NBMAXCLIENT];  // tableau qui contient toute les utilisations
