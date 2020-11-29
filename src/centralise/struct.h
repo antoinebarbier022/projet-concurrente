@@ -2,10 +2,7 @@
 #define H_GL_STRUCT
 
 #define NBSITES 10 // nombre de site maximum
-#define NBDEMANDEMAX 20 //nombre de demande maximum d'un utilisateur est = à 2*NBSITES car il y a deux mode exclusif ou partagé sur chaque site
-/*On se dit que le système peux accepté 20 clients donc si chaque client prends des ressources 
-sur les 10 sites il y aurait 200 places dans le tableau d'utilisation.*/
-#define NBMAXCLIENT 200 // on fixe la taille maximum de client 
+#define NBMAXCLIENT 20 // on fixe la taille maximum de client 
 
 /* ------------------------------------------- */
 /* Structure de données pour l'état du système */
@@ -19,7 +16,7 @@ typedef struct Site_s Site_s;
 typedef struct Use_s Use_s;
 
 struct Use_s{
-    int idCustomer;        // identifiant du client
+    int isUse;              // boolean pour dire que le client loue des ressources ou non
     int mode;
     int cpu;               // Nombre de cpu utilisé par le client 
     float sto;                      // Nombre de Stockage en Go utilisé par le client
@@ -66,7 +63,7 @@ struct Modification_s{
     int type;                       // 1 : demande | 2 : libération
     int idClient;
     int nbDemande;            // taille du tableau exclusiveMode
-    struct UseMod_s tabDemande[NBDEMANDEMAX];  // ici on place juste à la suite les une des autres les UseMod_s, l'index ne correspond pas au site
+    struct UseMod_s tabDemande[NBMAXCLIENT];  // ici on place juste à la suite les une des autres les UseMod_s, l'index ne correspond pas au site
 };
 
 /* -------------------------------------------------------------------------- */

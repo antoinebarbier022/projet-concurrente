@@ -10,9 +10,8 @@
 #include <iostream>
 #include <unistd.h>
 
-#define NBMAXCLIENT 200
 #define NBSITES 10 
-#define NBDEMANDEMAX 20
+#define NBMAXCLIENT 20
 
 using namespace std;
 
@@ -33,6 +32,31 @@ void resetStructModif(Modification_s *m, int idC){
         m->tabDemande[i].sto = 0;
     }
 
+}
+
+
+// on récupère l'état système pour le mettre en local
+void initEtatSystemeLocal(SystemState_s *s){
+
+}
+
+void updateEtatSystemeLocal(SystemState_s *s){
+
+}
+
+void initRessourcesLoue(SystemState_s *s, RessourceLoue_s *r, int idClient){
+    for(int i=0;i<s->nbSites;i++){
+        if(s->sites[i].tabUse[idClient-1].isUse){
+            // si les sur un site dans le tableau d'utilisation à l'index idClient -1 on a noté comme loué alors l'utilisateur avec idClient à une location en cours
+            r->nbRessources++;
+            r->tabLocation[r->nbRessources-1].idSite = s->sites[i].id; // on place l'id du site dont on a louer des ressources
+            r->tabLocation[r->nbRessources-1].mode = s->sites[i].tabUse[idClient-1].mode; // Mode
+            r->tabLocation[r->nbRessources-1].cpu = s->sites[i].tabUse[idClient-1].cpu;
+            r->tabLocation[r->nbRessources-1].sto = s->sites[i].tabUse[idClient-1].sto;
+        }else{
+
+        }
+    }
 }
 
 // etatSystemeLocal est la copie de l'état du système du server, 
@@ -138,7 +162,7 @@ void demandeDeRessources(Modification_s *m){
         //printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
         // Sinon on entre la demande
         m->nbDemande++; // on a mtn une première demande
-        if(m->nbDemande >= NBDEMANDEMAX){
+        if(m->nbDemande >= NBMAXCLIENT){
             perror("erreur : le nombre de demande ne peux pas être supérieur au nombre de site.\n");
             exit(1); 
         }
@@ -216,7 +240,7 @@ int checkRessourcesDispo(SystemState_s* s, Modification_s *m){
         int nbStoRestant = s->sites[idSiteDemande-1].stoFree;
 
         // d'abord on regarde pour le stockage
-        if((nbStoRestant - nbStoDemande) <0){
+        if((nbStoRestant - nbStoDemande) < 0){
             perror("Sto insuffisant");
             return -1; // nb stockage insuffisant
         }
@@ -236,6 +260,7 @@ int checkRessourcesDispo(SystemState_s* s, Modification_s *m){
     }
     return 1; // Si on arrive ici c'est qu'il n'y a pas de problème, toutes les ressources sont dispo
 }
+
 // on applique la demande sur le segment mémoire
 void traitementDemande(SystemState_s* s, Modification_s *m){
 
@@ -245,10 +270,10 @@ void traitementDemande(SystemState_s* s, Modification_s *m){
     int idClient = m->idClient;
     while(i < m->nbDemande){
         int idSiteDemande = m->tabDemande[i].idSite;
-        int nbStoDemande = m->tabDemande[i].sto; 
+        float nbStoDemande = m->tabDemande[i].sto; 
         int modeDemande = m->tabDemande[i].mode; 
         int nbCpuDemande = m->tabDemande[i].cpu; 
-        printf("\n Demande sur le site %d -> %d sto, mode : %d, %d cpu \n",idSiteDemande, nbStoDemande, modeDemande, nbCpuDemande);
+        printf("\n Demande sur le site %d -> %f sto, mode : %d, %d cpu \n",idSiteDemande, nbStoDemande, modeDemande, nbCpuDemande);
 
         s->sites[idSiteDemande-1].stoFree -= nbStoDemande;
         if(modeDemande == 1){ // exclusif
@@ -260,8 +285,13 @@ void traitementDemande(SystemState_s* s, Modification_s *m){
                 s->sites[idSiteDemande-1].maxCpuPartage = nbCpuDemande;
             }
         }
+        // on complète le tableau d'utilisation sur le site pour le client
+        s->sites[idSiteDemande-1].tabUse[idClient - 1].isUse = 1;
+        s->sites[idSiteDemande-1].tabUse[idClient - 1].mode = modeDemande;
+        s->sites[idSiteDemande-1].tabUse[idClient - 1].cpu = nbCpuDemande;
+        s->sites[idSiteDemande-1].tabUse[idClient - 1].sto = nbStoDemande;
         
-        printf("\n Le client %d à loué %d cpu en mode : %d et %d Go sur le site %d ->  \n",idClient,nbCpuDemande,modeDemande,nbStoDemande, idSiteDemande);
+        printf("\n Le client %d à loué %d cpu en mode : %d et %f Go sur le site %d ->  \n",idClient,nbCpuDemande,modeDemande,nbStoDemande, idSiteDemande);
 
         i++;
     }
@@ -308,21 +338,13 @@ void updateRessourceLouerLocal(Modification_s *m, RessourceLoue_s *r){
 int main(int argc, char const *argv[]){
     printf("\e[1;1H\e[2J");// efface la console
     int i, j, n;
-
     for (i = 0; i < 11; i++) {
-
         for (j = 0; j < 10; j++) {
-
         n = 10*i + j;
-
         if (n > 108) break;
-
         printf("\033[%dm %3d\033[m", n, n);
-
         }
-
         printf("\n");
-
     }
 
     int identifiantClient;
@@ -369,19 +391,6 @@ int main(int argc, char const *argv[]){
         exit(1);
     }
 
-    //Etape 1 : créer une copie local du système
-
-    // copie de l'état système sur le client
-    printf("Attente de la copie du système\n");
-    // ici -> mettre un lock car on lit le segment mémoire
-    semop(sem_id,opLock,1); // P sur le semaphore qui sert de lock pour l'état du système
-    struct SystemState_s etatSystemCopyOnClient = *p_att;
-    printf("... Copy en cours ...\n");
-    sleep(1);
-    // ici -> mettre un unlock 
-    semop(sem_id,opLock+1,1); // V sur le semaphore qui sert de lock pour l'état du système
-    printf("La copy est terminé\n");
-
     // on initialise les ressources loué // on place tous les idSite à -1 pour dire qu'il ne sont pas louer
     // après on va le modifier pour initialiser se tableau avec l'état système, pour mettre ceux ou l'id de l'utilisateur est présent
     RessourceLoue_s ressourceLoue;
@@ -392,6 +401,21 @@ int main(int argc, char const *argv[]){
         ressourceLoue.tabLocation[i].idSite = -1;
     }
 
+    //Etape 1 : créer une copie local du système
+
+    // copie de l'état système sur le client
+    printf("Attente de la copie du système\n");
+    semop(sem_id,opLock,1); // P sur le semaphore qui sert de lock pour l'état du système
+        struct SystemState_s etatSystemCopyOnClient = *p_att;
+        printf("... Copy en cours ...\n");
+        sleep(1);
+        // on initialise le tableau de ressources qui sont loué par l'utilisateur
+        initRessourcesLoue(p_att, &ressourceLoue, identifiantClient);
+
+    semop(sem_id,opLock+1,1); // V sur le semaphore qui sert de lock pour l'état du système
+    printf("La copy est terminé\n");
+
+    afficherRessourcesLoue(&ressourceLoue);
 
 
     //Etape 2 : creation du processus secondaire (thread) 

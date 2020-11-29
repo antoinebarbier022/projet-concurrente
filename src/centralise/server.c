@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <iostream>
 
+#define NBSITES 10 
+#define NBMAXCLIENT 20
 
 typedef struct SystemState_s SystemState_s;
 typedef struct Site_s Site_s;
@@ -119,6 +121,12 @@ int main(int argc, char const *argv[]){
     p_att->sites[0] = lyon;
     p_att->sites[1] = montpellier;
     p_att->sites[2] = Toulouse;
+    for(int indexSite=0;indexSite<p_att->nbSites;indexSite++){
+        for(int i=0;i<NBMAXCLIENT;i++){
+            p_att->sites[indexSite].tabUse[i].isUse = 0; // on init le boolean à 0 car il n'y a pas encore d'utilisation au lancement du server
+        }
+    }
+
     
     printf("Exemple : le site de Lyon possède %d cpu \n", p_att->sites[0].cpu);
     printf("Exemple : le site de Montpellier possède %d cpu \n", p_att->sites[1].cpu);
