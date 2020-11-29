@@ -51,7 +51,7 @@ void initRessourcesLoue(SystemState_s *s, RessourceLoue_s *r, int idClient){
                 s->sites[i].tabUse[idClient-1].mode,
                 s->sites[i].tabUse[idClient-1].cpu,
                 s->sites[i].tabUse[idClient-1].sto
-            }
+            };
         }
     }
 }
@@ -353,6 +353,7 @@ void updateRessourceLouerLocal(Modification_s *m, RessourceLoue_s *r){
 }
 
 int main(int argc, char const *argv[]){
+    /*
     printf("\e[1;1H\e[2J");// efface la console
     int i, j, n;
     for (i = 0; i < 11; i++) {
@@ -363,6 +364,7 @@ int main(int argc, char const *argv[]){
         }
         printf("\n");
     }
+    */
 
     int identifiantClient;
     if(argc != 3){
