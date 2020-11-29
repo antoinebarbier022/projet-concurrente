@@ -26,10 +26,7 @@ void resetStructModif(Modification_s *m, int idC){
     m->type = 0;
     m->nbDemande = 0;
     for(int i=0;i<m->nbDemande;i++){
-        m->tabDemande[i].idSite = -1;
-        m->tabDemande[i].mode = 0;
-        m->tabDemande[i].cpu = 0;
-        m->tabDemande[i].sto = 0;
+        m->tabDemande[i] = {-1, 0, 0, 0};
     }
 
 }
@@ -49,12 +46,12 @@ void initRessourcesLoue(SystemState_s *s, RessourceLoue_s *r, int idClient){
         if(s->sites[i].tabUse[idClient-1].isUse){
             // si les sur un site dans le tableau d'utilisation à l'index idClient -1 on a noté comme loué alors l'utilisateur avec idClient à une location en cours
             r->nbRessources++;
-            r->tabLocation[r->nbRessources-1].idSite = s->sites[i].id; // on place l'id du site dont on a louer des ressources
-            r->tabLocation[r->nbRessources-1].mode = s->sites[i].tabUse[idClient-1].mode; // Mode
-            r->tabLocation[r->nbRessources-1].cpu = s->sites[i].tabUse[idClient-1].cpu;
-            r->tabLocation[r->nbRessources-1].sto = s->sites[i].tabUse[idClient-1].sto;
-        }else{
-
+            r->tabLocation[r->nbRessources-1] = {
+                s->sites[i].id,
+                s->sites[i].tabUse[idClient-1].mode,
+                s->sites[i].tabUse[idClient-1].cpu,
+                s->sites[i].tabUse[idClient-1].sto
+            }
         }
     }
 }
@@ -167,10 +164,8 @@ void demandeDeRessources(Modification_s *m){
             exit(1); 
         }
         if(inputMode == 2 || inputMode == 1){
-            m->tabDemande[m->nbDemande - 1].mode = inputMode;
-            m->tabDemande[m->nbDemande - 1].idSite = inputId;
-            m->tabDemande[m->nbDemande - 1].cpu = inputCpu;
-            m->tabDemande[m->nbDemande - 1].sto = inputSto;
+            // on place les données demandé dans la structure
+            m->tabDemande[m->nbDemande - 1] = {inputId, inputMode, inputCpu, inputSto};
         }else{
             perror("erreur : le mode doit être 1 pour <mode exclusif> ou 2 pour <mode partagé>");
             exit(1);
@@ -318,11 +313,7 @@ void traitementDemande(SystemState_s* s, Modification_s *m){
             }
         }
         // on complète le tableau d'utilisation sur le site pour le client
-        s->sites[idSiteDemande-1].tabUse[idClient - 1].isUse = 1;
-        s->sites[idSiteDemande-1].tabUse[idClient - 1].mode = modeDemande;
-        s->sites[idSiteDemande-1].tabUse[idClient - 1].cpu = nbCpuDemande;
-        s->sites[idSiteDemande-1].tabUse[idClient - 1].sto = nbStoDemande;
-        
+        s->sites[idSiteDemande-1].tabUse[idClient - 1] = {1, modeDemande, nbCpuDemande, nbStoDemande};
         //printf("\n Le client %d à loué %d cpu en mode : %d et %f Go sur le site %d ->  \n",idClient,nbCpuDemande,modeDemande,nbStoDemande, idSiteDemande);
 
         i++;
@@ -348,10 +339,7 @@ void updateRessourceLouerLocal(Modification_s *m, RessourceLoue_s *r){
 
             // si vrai ça veux dire qu'il qu'on a pas deja louer de ressource sur ce site avec ce mode
             if(r->tabLocation[siteDemande-1].idSite == -1){
-                r->tabLocation[siteDemande-1].idSite = siteDemande;
-                r->tabLocation[siteDemande-1].mode = modeDemande;
-                r->tabLocation[siteDemande-1].cpu = cpuDemande;
-                r->tabLocation[siteDemande-1].sto = stoDemande;
+                r->tabLocation[siteDemande-1] = {siteDemande, modeDemande, cpuDemande, stoDemande};
                 r->nbRessources++;
             }else{
                 // erreur, on a deja louer des ressources sur ce site on annule la demande
