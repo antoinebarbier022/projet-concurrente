@@ -238,7 +238,7 @@ int checkDemandeValide(SystemState_s* s, Modification_s *m){
         // test la validité du site
         int idSiteDemande = m->tabDemande[i].idSite;
         if(idSiteDemande <= s->nbSites && idSiteDemande > 0){
-            if(m->tabDemande[i].cpu < s->sites[idSiteDemande - 1].cpu && m->tabDemande[i].cpu > 0){
+            if(m->tabDemande[i].cpu <= s->sites[idSiteDemande - 1].cpu && m->tabDemande[i].cpu > 0){
                 if(m->tabDemande[i].sto < s->sites[idSiteDemande - 1].sto && m->tabDemande[i].sto > 0){
                     return 1;
                 }else{
@@ -353,8 +353,9 @@ void updateRessourceLouerLocal(Modification_s *m, RessourceLoue_s *r){
 }
 
 int main(int argc, char const *argv[]){
-    /*
     printf("\e[1;1H\e[2J");// efface la console
+
+    /*
     int i, j, n;
     for (i = 0; i < 11; i++) {
         for (j = 0; j < 10; j++) {
