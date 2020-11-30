@@ -26,7 +26,7 @@ struct Site_s{
     int id;                // identifiant du site
     int cpu;               // Nombre de CPU total sur le site
     float sto; 
-    int cpuFree;               // Nombre de CPU total sur le site
+    int cpuFree;               
     float stoFree;                      // Nombre de Stockage en Go sur le site
     int cpuExclusif;
     int maxCpuPartage;          // le nombre max de cpu partager

@@ -57,14 +57,15 @@ void initRessourcesLoue(SystemState_s *s, RessourceLoue_s *r, int idClient){
 }
 
 // etatSystemeLocal est la copie de l'état du système du server, 
-void afficherEtatSysteme(SystemState_s *etatSystemeLocal){
+void afficherEtatSysteme(SystemState_s *s){
     printf("\033[36m "); // couleur du texte
     printf("\nEtat du système :\n");
-    for(int i=0;i<etatSystemeLocal->nbSites;i++){
-        printf("  - [Site %d] : %d cpu free, %.1f Go free \n",   
-                etatSystemeLocal->sites[i].id, 
-                etatSystemeLocal->sites[i].cpuFree,
-                etatSystemeLocal->sites[i].stoFree);
+    for(int i=0;i<s->nbSites;i++){
+        printf("  - [Site %d] : %-4d cpu libre [en exclusif], %-4d cpu libre [en partagé], %-4.1f Go libre \n",   
+                s->sites[i].id, 
+                s->sites[i].cpu - s->sites[i].maxCpuPartage - s->sites[i].cpuExclusif,
+                s->sites[i].cpu - s->sites[i].maxCpuPartage,
+                s->sites[i].stoFree);
     }
     printf("\033[m");
 }
@@ -143,16 +144,17 @@ int demandeTypeAction(){
 void demandeDeRessources(Modification_s *m){
     int inputId, inputMode, inputCpu;
     float inputSto;
-    printf("\nLa demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
+    printf("\nLa demande doit correspondre à ce format : idSite mode cpu stockage\n");
+    printf("Pour le mode : [1 = exclusif] et [2 = partagé]\n");
     printf("Demande de ressource : ");
     cin >> inputId >> inputMode >> inputCpu >> inputSto;
     if(!cin){
         // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
         printf("\nErreur : La demande doit correspondre à ce format : idSite mode nbCPU nbSto\n");
             printf("\t idSite : l'identifiant du site \n");
-            printf("\t mode   : 1 pour le mode exclusif, 2 pour le mode partagé \n");
-            printf("\t nbCPU  : Le nombre de CPU demandé \n");
-            printf("\t nbSto  : Le nombre de Go de stockage demandé \n");
+            printf("\t mode   : [1 = exclusif] et [2 = partagé]\n");
+            printf("\t cpu  : Le nombre de CPU demandé \n");
+            printf("\t stockage  : Le nombre de Go de stockage demandé \n");
         exit(1); 
     }
     else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
