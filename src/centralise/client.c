@@ -237,20 +237,28 @@ void traitementLiberation(SystemState_s* s,RessourceLoue_s *r, int idClient, int
 int checkDemandeValide(SystemState_s* s, Modification_s *m){
     int i = 0;
     while(i < m->nbDemande){
-        // test la validité du site
         int idSiteDemande = m->tabDemande[i].idSite;
+
+        //test : si le nombre de cpu et de sto = 0 alors y'a rien a faire
+        if(m->tabDemande[i].cpu == 0 && m->tabDemande[i].sto == 0){
+            perror("\nErreur : demande impossible car tu demande 0 cpu et 0 Go de stockage");
+            return -1;
+        }
+        // test la validité du site
         if(idSiteDemande <= s->nbSites && idSiteDemande > 0){
-            if(m->tabDemande[i].cpu <= s->sites[idSiteDemande - 1].cpu && m->tabDemande[i].cpu > 0){
-                if(m->tabDemande[i].sto < s->sites[idSiteDemande - 1].sto && m->tabDemande[i].sto > 0){
+            if(m->tabDemande[i].cpu <= s->sites[idSiteDemande - 1].cpu && m->tabDemande[i].cpu >= 0){
+                if(m->tabDemande[i].sto < s->sites[idSiteDemande - 1].sto && m->tabDemande[i].sto >= 0){
                     return 1;
                 }else{
+                    perror("\nErreur : nombre de Go de stockage non valide");
                     return -1;
                 }
             }else{
+                perror("\nErreur : nombre de CPU non valide");
                 return -1; // impossible car le nombre de cpu ne pourra jamais être offert
             }
         }else{
-            perror("\nID non valide\n");
+            perror("\nErreur : ID du site non valide");
             return -1; // impossible de traiter la demande car l'id du site est invalide
         }
         i++;
@@ -527,7 +535,7 @@ int main(int argc, char const *argv[]){
             }else{
                 // On regarde d'abord si la demande est valide
                 if(checkDemandeValide(p_att, &modification) == -1){
-                    printf("Erreur : La demande est impossible car l'id du site n'est pas valide ou alors le nombre de ressouce demandé ne pourra jamais être disponible\n ");
+                    // le message d'erreur sera affiché depuis la fonction
                     exit(1); 
                 }else{
                     if(checkRessourcesDispo(p_att, &modification) != -1){

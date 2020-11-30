@@ -144,7 +144,7 @@ int main(int argc, char const *argv[]){
 
     // destruction de l'objet IPC
     int touche;
-    cout << "Appuyer sur une touche pour arreté le server ..." << endl;
+    cout << "Appuyer sur une touche pour arreter le server ..." << endl;
     cin >> touche;
     
     shmctl(shm_id,0,IPC_RMID);
