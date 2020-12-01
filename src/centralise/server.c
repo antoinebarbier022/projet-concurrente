@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <iostream>
+#include <unistd.h>
 
 #define NBSITES 10 
 #define NBMAXCLIENT 20
@@ -18,8 +19,6 @@ typedef struct Use_s Use_s;
 using namespace std;
 
 int main(int argc, char const *argv[]){
-
-
     if(argc != 2){
         printf("lancement : ./server chemin_fichier_cle\n");
         exit(1);
@@ -38,11 +37,14 @@ int main(int argc, char const *argv[]){
     }
 
     // identification d'un tableau de 2 sémaphores
-    // Le semaphore numero 1 sert de lock pour accédé au segment mémoire de l'état du système
-    // Le semaphore numero 2 sert pour la notification de la modification de l'état mémoire
-    int sem_id = semget(cle_sem, 2, IPC_CREAT|0666);
+    // Le semaphore numero 0 sert de lock pour accédé au segment mémoire de l'état du système
+    // Le semaphore numero 1 sert pour attendre une notification 
+    //          Quand il est égale à 1 on ne peut pas passer, on doit attendre une notification de modification
+    //          Quand il est égale à 0, on passe à la suite
+    // Le semaphore numero 2 sert pour la notification : il sert pour le rdv, il est initialiser avec le nombre de client
+    int sem_id = semget(cle_sem, 3, IPC_CREAT|0666);
     if(sem_id == -1) {
-        perror("erreur : semget tableau de 2 semaphores");
+        perror("erreur : semget tableau de 3 semaphores");
         exit(1);
     }
 
@@ -54,8 +56,16 @@ int main(int argc, char const *argv[]){
     }egCtrl;
 
     // initialisation des semaphores
+    // init Semaphore qui protège l'état du système
     egCtrl.val = 1; // valeur du semaphore
-    if(semctl(sem_id, 0, SETVAL, egCtrl) == -1){  // On SETVAL pour le sémaphore numero 1
+    if(semctl(sem_id, 0, SETVAL, egCtrl) == -1){  // On SETVAL pour le sémaphore numero 0
+        perror("erreur : init du semaphore 0");
+        exit(1);
+    }
+
+    // init Semaphore notification qui avertie de la modification de l'état du système
+    egCtrl.val = 1; // valeur du semaphore
+    if(semctl(sem_id, 1, SETVAL, egCtrl) == -1){  // On SETVAL pour le sémaphore numero 0
         perror("erreur : init du semaphore 0");
         exit(1);
     }
@@ -64,9 +74,9 @@ int main(int argc, char const *argv[]){
     que tous les clients on lu la modification apporté au système avant de continuer leurs actions 
     On devra mettre en place un systeme de rdv pour attentre que tous les clients ai fini de mettre à jour 
     leurs copy local du système avant de supprimer le contenu du segment mémoire pour les modifications*/
-    int nbClientConecte = 1;
-    egCtrl.val = nbClientConecte; 
-    if(semctl(sem_id, 1, SETVAL, egCtrl) == -1){  // On SETVAL pour le sémaphore numero 2
+    // quand un client ce connecte il fait une op +1 sur le semaphore
+    egCtrl.val = 0; 
+    if(semctl(sem_id, 2, SETVAL, egCtrl) == -1){  // On SETVAL pour le sémaphore numero 2
         perror("erreur : init du semaphore 1");
         exit(1);
     }
@@ -86,7 +96,7 @@ int main(int argc, char const *argv[]){
         {(u_short)0,(short)+1,SEM_UNDO}
     };
 
-    //initialisation des opérations pour le sémaphore aux modifications (num 1) 
+    //initialisation des opérations pour le sémaphore pour (num 1) 
     /*struct sembuf opMod[]={
         {(u_short)1,(short)-1,SEM_UNDO},
         {(u_short)1,(short)+1,SEM_UNDO}
@@ -145,9 +155,15 @@ int main(int argc, char const *argv[]){
     // destruction de l'objet IPC
     int touche;
     cout << "Appuyer sur une touche pour arreter le server ..." << endl;
-    cin >> touche;
+    while(1){
+        int val_notif2 = semctl(sem_id, 1, GETVAL);
+        printf("Semaphore notification = %d \n",val_notif2);
+        sleep(1);
+    }
     
     shmctl(shm_id,0,IPC_RMID);
+    semctl(sem_id,0,IPC_RMID);
+    
 
     return 0;
 }

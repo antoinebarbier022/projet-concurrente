@@ -362,7 +362,45 @@ void updateRessourceLouerLocal(Modification_s *m, RessourceLoue_s *r){
     }
 }
 
+void* threadAffichageSysteme(void* par){
+    /*while(1){
+        sleep(7);
+        printf("\n\n\nsalut mec\n\n\n");
+    }*/
+    
+}
+
+// les fonctions de notifications doivent être atomique, on ne doit pas mettre autre chose que ça
+void emmetreNotification(int sem_id){
+    struct sembuf opNotif = {(u_short)1,(short)-1,0};
+    semop(sem_id,&opNotif,1);
+}
+void libereNotification(int sem_id){ // remet 1 dans le semaphore notif car il n'y a plus de notif
+    struct sembuf opNotif = {(u_short)1,(short)+1,0};
+    semop(sem_id,&opNotif,1);
+}
+void attentNotification(int sem_id){ 
+    struct sembuf opNotif = {(u_short)1,(short)0,0};
+    semop(sem_id,&opNotif,1);
+    
+}
+
+// les fontions opérations sur le semaphore num 2 (pour les rdv clients)
+void attentRdvClient(int sem_id){
+    struct sembuf op = {(u_short)2,(short)0,SEM_UNDO};
+    semop(sem_id,&op,1);
+}
+void opPsemRdv(int sem_id){
+    struct sembuf op = {(u_short)2,(short)-1,SEM_UNDO};
+    semop(sem_id,&op,1);
+}
+void opVsemRdv(int sem_id){
+    struct sembuf op = {(u_short)2,(short)+1,SEM_UNDO};
+    semop(sem_id,&op,1);
+}
+
 int main(int argc, char const *argv[]){
+
     printf("\e[1;1H\e[2J");// efface la console
 
     /*
@@ -377,7 +415,7 @@ int main(int argc, char const *argv[]){
     }
     */
 
-    int identifiantClient;
+    
     if(argc != 3){
         printf("lancement : ./server chemin_fichier_cle idClient\n");
         exit(1);
@@ -386,9 +424,17 @@ int main(int argc, char const *argv[]){
         printf("Erreur lancement : idClient doit être compris entre 1 et %d\n",NBMAXCLIENT);
         exit(1);
     }
+    int identifiantClient;
     identifiantClient = atoi(argv[2]);
 
-    
+
+    // thread
+
+    pthread_t idTh;
+    if(pthread_create(&idTh, NULL, threadAffichageSysteme, NULL) != 0){
+        perror("Erreur lors de la creation thread");
+        exit(1);
+    }
 
     // récuperer les identifiants des ipc
     key_t cle = ftok(argv[1], 'z');         // clé du segment mémoire pour l'état du système
@@ -401,8 +447,8 @@ int main(int argc, char const *argv[]){
         exit(1);
     }
 
-    // identification d'un tableau de 2 sémaphore
-    int sem_id = semget(cle_sem, 2, IPC_CREAT|0666);
+    // identification d'un tableau de 3 sémaphores
+    int sem_id = semget(cle_sem, 3, IPC_CREAT|0666);
     if(sem_id == -1) {
         perror("erreur : semget tableau de 2 semaphores");
         exit(1);
@@ -431,10 +477,21 @@ int main(int argc, char const *argv[]){
         ressourceLoue.tabLocation[i].idSite = -1;
     }
 
+    // un client est connecté donc on le signal dans le sémaphore en ajoutant une ressource
+    opVsemRdv(sem_id);
+    int val_sem = semctl(sem_id, 2, GETVAL);
+    if(val_sem == -1){
+        perror("problème sem");
+        exit(1);
+    }
+    printf("\nNombre de clients connecté : %d \n", val_sem);
+
     //Etape 1 : créer une copie local du système
 
     // copie de l'état système sur le client
     printf("Attente de la copie du système\n");
+            // debug
+    printf("\nLe lock système est à : %d \n", semctl(sem_id, 0, GETVAL));
     semop(sem_id,opLock,1); // P sur le semaphore qui sert de lock pour l'état du système
         struct SystemState_s etatSystemCopyOnClient = *p_att;
         printf("... Copy en cours ...\n");
@@ -528,36 +585,97 @@ int main(int argc, char const *argv[]){
         afficherStructureRequete(&modification);
 
         int demandeAccepte = 0; // vrai une fois le traittement fait
+
+
+
         //lock
-        semop(sem_id,opLock,1); // P sur le semaphore qui sert de lock pour l'état du système
+        semop(sem_id,opLock,1); // P sémaphore Etat Système (lock)
+
+            // si il y a une notification
+            int val_notif = semctl(sem_id, 1, GETVAL);
+            printf("\nSemaphore notification = %d \n",val_notif);
+            if(val_notif == 0){
+                semop(sem_id,opLock+1,1); // V sémaphore Etat Système (unlock)
+                    printf("\nPoint de rendez vous : on attent que tout le monde arrive ici\n");
+                    
+                    opPsemRdv(sem_id);// P rdv client
+                    printf("\nil reste : %d \n", semctl(sem_id, 2, GETVAL));
+                    attentRdvClient(sem_id); // Z rdv client
+                    sleep(1); // pour l'instant je met ce sleep comme ça je suis sur que tout le monde à passé le Z
+
+                    opVsemRdv(sem_id);// V pour repartir
+                    
+                semop(sem_id,opLock,1); // P sémaphore Etat Système (lock)
+                // On remet la notif à 1 pour la terminer
+                if(semctl(sem_id, 1, GETVAL) == 0){
+                    libereNotification(sem_id); 
+                }
+            }else if(val_notif == -1){
+                perror("Erreur : Il y un problème lors de la lecture du sémaphore notification");
+                exit(1);
+            }
+
             if(typeAction == 2){
                 traitementLiberation(p_att,&ressourceLoue, identifiantClient, siteALiberer);
+                emmetreNotification(sem_id);
             }else{
                 // On regarde d'abord si la demande est valide
                 if(checkDemandeValide(p_att, &modification) == -1){
                     // le message d'erreur sera affiché depuis la fonction
                     exit(1); 
                 }else{
-                    if(checkRessourcesDispo(p_att, &modification) != -1){
-                        traitementDemande(p_att, &modification);
-                        demandeAccepte = 1;
-                    }else{
-                        // il va falloir re essayer quand il y aura une notification et une libération dans le systeme
-                        printf("\n On est en attente de dispo de ressource\n");
+                    // Si les ressources sont dispo on ne rentre pas dans le while
+                    while(checkRessourcesDispo(p_att, &modification)== -1){
+                        semop(sem_id,opLock+1,1); // V sémaphore Etat Système (unlock)
+                            printf("\n On est en attente de dispo de ressource\n");
+
+                            // On attend que la valeur du sémaphore = 0
+                            attentNotification(sem_id); // op Z sur le semaphore notification
+                            // Attendre une modification du système
+
+
+                                opPsemRdv(sem_id);// P rdv client
+                                printf("\nil reste : %d \n", semctl(sem_id, 2, GETVAL));
+                                attentRdvClient(sem_id); // Z rdv client
+                                sleep(1); // pour l'instant je met ce sleep comme ça je suis sur que tout le monde à passé le Z
+
+                                opVsemRdv(sem_id);// V pour repartir
+
+                            semop(sem_id,opLock,1); // P sémaphore Etat Système (lock)
+
+                                            // On remet la notif à 1 pour la terminer
+                                if(semctl(sem_id, 1, GETVAL) == 0){
+                                    //libereNotification(sem_id); 
+                                }
+                            printf("\n On re check ...\n");
+                            printf("resultat du check : %d\n", checkRessourcesDispo(p_att, &modification));
+                            if(checkRessourcesDispo(p_att, &modification)){
+                                libereNotification(sem_id); 
+                            }
+                            
+                        
                     }
+                    printf("\n Traitement ...\n");
+                    traitementDemande(p_att, &modification);
+                    emmetreNotification(sem_id); 
+                    demandeAccepte = 1;
                 }
             }
-            
-
             afficherEtatSysteme(p_att); // afficher le distant
         //unlock
-        semop(sem_id,opLock+1,1); // V sur le semaphore qui sert de lock pour l'état du système
+        semop(sem_id,opLock+1,1); // V sémaphore Etat Système (unlock)
 
+        int val_notif2 = semctl(sem_id, 1, GETVAL);
+        printf("\nSemaphore notification = %d \n",val_notif2);
         if(demandeAccepte){
             // On met a jour le tableau des ressources louer une fois que le server à accepté de changé l'état du système
             updateRessourceLouerLocal(&modification,&ressourceLoue);
         }
-
+        
+        val_notif2 = semctl(sem_id, 1, GETVAL);
+        printf("\nSemaphore notification = %d \n",val_notif2);
+        
+    
     // détachement du segment mémoire
     int dtres = shmdt(p_att); 
     if(dtres == -1){
