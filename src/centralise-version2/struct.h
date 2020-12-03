@@ -2,6 +2,7 @@
 #define H_GL_STRUCT
 
 
+
 /* ------------------------------------------- */
 /* Structure de données pour l'état du système */
 /* ------------------------------------------- */
@@ -26,14 +27,14 @@ struct Site_s{
 
     int     nbMaxClientEx;               
     int     nbMaxClientSh;                      
-    Use_s   *tabUseExclusif;
-    Use_s   *tabUseShare;          
+    Use_s   tabUseExclusif[500];
+    Use_s   tabUseShare[2000];          
 };
 
 
 struct SystemState_s{
     int nbSites;                    // Taille du tableau sites
-    Site_s *sites;          // Tableau qui contient tous les sites présent dans l'état du système
+    Site_s sites[100];          // Tableau qui contient tous les sites présent dans l'état du système
 };
 
 
