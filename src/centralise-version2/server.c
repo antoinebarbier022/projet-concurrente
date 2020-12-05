@@ -12,6 +12,7 @@
 #include<regex.h>
 #include <cstring>
 #include<signal.h>
+#include <time.h>
 
 using namespace std;
 
@@ -30,6 +31,7 @@ void signal_callback_handler(int signum){
 }
 
 void* threadAffichageSysteme(void* p){
+
     while(1){
         struct sembuf lireNotif = {(u_short)0,(short)-1,SEM_UNDO};
         semop(sem_idNotif,&lireNotif,1);
@@ -43,7 +45,17 @@ void* threadAffichageSysteme(void* p){
             //printf(BMAG "[Notification reçut !]\n" reset);
             afficherSysteme(p_att);
         unlockSysteme(sem_id); //unlock
-        printf( "Appuyer sur une touche pour arreter le server ...\n" );
+            time_t s = time(NULL);
+    struct tm* current_time = localtime(&s);
+        printf(BWHT " \nDernière Modification : ");
+        printf("%02d:%02d:%02d\n",
+           current_time->tm_hour,
+           current_time->tm_min,
+           current_time->tm_sec);
+        lockSysteme(sem_id);
+            printf(" Nombre de client : %d\n\n", p_att->nbClientConnecte);
+        unlockSysteme(sem_id);
+        printf(reset "Appuyer sur une touche pour arreter le server ...\n" );
         //printf(BMAG "[Fin notification!]\n" reset);
     }
 }
@@ -130,11 +142,11 @@ int main(int argc, char const *argv[])
 
     pthread_t thread;
     if(pthread_create (&thread, NULL, threadAffichageSysteme, NULL)){
-        printf(BRED "Erreur [pthread_create]: Création du thread" reset);
+        printf(BRED "Erreur [pthread_create]: Création du thread Affichage" reset);
     }
 
     printf("Affichage du système :\n");
-    afficherSystemeInitial(&etatSysteme);
+    afficherSysteme(&etatSysteme);
 
     printf("Appuyer sur une touche pour arreter le server ... ");
 

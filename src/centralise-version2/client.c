@@ -10,7 +10,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <pthread.h>
-#include<signal.h>
+#include <signal.h>
 
 
 using namespace std;
@@ -22,61 +22,52 @@ int nbNotif = 0;
 struct SystemState_s* p_att;
 Requete_s ressourceLoue;
 
+
 // signal ctrl-c
 void signal_callback_handler(int signum){
 
-        p_att->tabNotif[numSemNotif] = -1; // supprimer le semaphore de l'utilisateur
-    char buffer[30] = {'\0'};
-    strcpy(p_att->tabId[idClient-1],buffer);
+    fermerClient(idClient, numSemNotif, p_att, &ressourceLoue ,shm_id, sem_id, sem_idNotif);
 
-    // libération des ressources
-    lockSysteme(sem_id);
-        ressourceLoue.type = 2; // libération
-        updateSysteme(p_att, &ressourceLoue);
-    unlockSysteme(sem_id);
-
-    // envoie Notification car on a libérer les ressources avant de quitter
-    if(emmetreNotif(sem_idNotif) == -1){
-        perror(BRED "Erreur : lors de l'envoie des notifications" reset);
-    }
-
-    // détachement du segment mémoire
-    int dtres = shmdt(p_att); 
-    if(dtres == -1){
-        perror(BRED "Erreur : shmdt -> lors du détachement du segment mémoire." reset);
-        exit(1);
-    }
-
-    // Destruction du segment mémoire
-    //lockSysteme(shm_id);
-        //p_att->tabNotif[numSemNotif] = -1; // supprimer le semaphore de l'utilisateur
-        //char buffer[30] = {'\0'};
-        //strcpy(p_att->tabId[idClient-1],buffer);
-    //unlockSysteme(shm_id);
-    cout << "Fermeture du client via ctrl-c\n" << endl;
+    printf(BRED "\nFin du programme : Fermeture du client via ctrl-c\n" reset);
     exit(signum);
 }
 
 // Ma fonction Thread
 // passer en parametre le l'id segment memoire, le numero
     
-    void* threadAffichageSysteme(void* p){
-        while(1){
-            struct sembuf lireNotif = {(u_short)numSemNotif,(short)-1,SEM_UNDO};
-            semop(sem_idNotif,&lireNotif,1);
-            if(semctl(sem_idNotif, numSemNotif, GETVAL) == -1){
-                pthread_exit(p);
-            } 
-            lockSysteme(sem_id); // lock
-                printf("\e[1;1H\e[2J");// efface la console
-                printf(BMAG "[Notification reçut !]\n" reset);
-                afficherSysteme(p_att);
-            unlockSysteme(sem_id); //unlock
-            afficherRessourcesLoue(&ressourceLoue);
-            
-        }
+void* threadAffichageSysteme(void* p){
+    while(1){
+        struct sembuf lireNotif = {(u_short)numSemNotif,(short)-1,SEM_UNDO};
+        semop(sem_idNotif,&lireNotif,1);
+        if(semctl(sem_idNotif, numSemNotif, GETVAL) == -1){
+            pthread_exit(p);
+        } 
+        lockSysteme(sem_id); // lock
+            printf("\e[1;1H\e[2J");// efface la console
+            printf(BMAG "[Notification reçut !]\n" reset);
+            afficherSysteme(p_att);
+        unlockSysteme(sem_id); //unlock
+        afficherRessourcesLoue(&ressourceLoue);
+        
     }
+}
 
+void* threadTerminerProgramme(void* p){
+    while(1){
+        if(semctl(sem_idNotif, 0, GETVAL) == -1){
+            //Information : Fermeture du thread affichage car le semaphore de notification n'existe plus.
+            printf(BRED "\nFin du programme : le server ne répond plus\n" reset);
+
+            // détachement du segment mémoire
+            int dtres = shmdt(p_att); 
+            if(dtres == -1){
+                perror(BRED "Erreur : shmdt -> lors du détachement du segment mémoire." reset);
+                exit(1);
+            }
+            exit(0);
+        } 
+    }
+}
     
 int main(int argc, char const *argv[])
 {   
@@ -165,6 +156,13 @@ int main(int argc, char const *argv[])
         exit(-1);
     }
 
+
+    pthread_t finProgramme;
+    if(pthread_create (&finProgramme, NULL, threadTerminerProgramme, NULL)){
+        printf(BRED "Erreur [pthread_create]: Création du thread finProgramme" reset);
+    }
+
+
     //Requete_s ressourceLoue; // tableau qui contient tous les sites déjà reservé
     ressourceLoue.nbDemande = 0;
     ressourceLoue.idClient = idClient;
@@ -175,6 +173,7 @@ int main(int argc, char const *argv[])
     int typeDemande = 1; // 
     while(typeDemande != 3 ){
         typeDemande = saisieTypeAction();
+
         Requete_s requete;
         requete.nbDemande = 0;
         requete.type = typeDemande;
@@ -183,26 +182,32 @@ int main(int argc, char const *argv[])
 
         //requete.nbDemande = 1;
         //requete.tabDemande[0]={2,2,7,0};
-        if(typeDemande != 3){
+        if(typeDemande == 1 || typeDemande == 2){
             int continuer = 1;
             do{
                 if(typeDemande == 1){
                     // on verifie en meme temps que le site n'est pas déja louer
-                    saisieDemandeRessource(&requete, &ressourceLoue); // on saisie une demande
+                    if(saisieDemandeRessource(&requete, &ressourceLoue) == -1){ // on saisie une demande
+                        printf(BRED "Erreur : Saisie de la reservation non valide\n" reset);
+                        return -1; 
+                    } 
                 }else{
                     if(ressourceLoue.nbDemande <=0){
-                        printf(BRED "Erreur : Avant de pouvoir libérer des ressources, il faut en louer." reset);
-                        exit(1); 
+                        printf(BRED "Erreur : Avant de pouvoir libérer des ressources, il faut en louer\n" reset);
+                        return -1; 
                     }
                     // on verifie en meme temps que le site est bien déja louer
-                    saisieDemandeLiberation(&requete, &ressourceLoue);
+                    if(saisieDemandeLiberation(&requete, &ressourceLoue) == -1){ // on saisie une demande
+                        printf(BRED "Erreur : Saisie de la reservation non valide\n" reset);
+                        return -1; 
+                    } 
                 }
                 printf("Faire une autre demande ? (Y/n) : ");
                 char autreDemande[15];
                 cin >> autreDemande;
                 if(!cin){
                     printf(BRED "Erreur : La saisie est incorect\n" reset);
-                    exit(1);
+                    fermerClient(idClient, numSemNotif, p_att, &ressourceLoue ,shm_id, sem_id, sem_idNotif);
                 }else{
                     if(strcmp(autreDemande,"Y") == 0){
                         continuer = 1;
@@ -211,14 +216,13 @@ int main(int argc, char const *argv[])
                     }else{
                         printf(BRED "Erreur : La saisie est incorect\n" reset);
                         continuer = 0;
-                        exit(1);
+                        fermerClient(idClient, numSemNotif, p_att, &ressourceLoue ,shm_id, sem_id, sem_idNotif);
                     }
                 }
                 
             }while(continuer);
-        }
+        
 
-        if(typeDemande == 1 || typeDemande == 2){
             printf("\n\nVérification de la requête ...\n");
             lockSysteme(sem_id); //lock
                 if(demandeValide(p_att, &requete) == 1){
@@ -254,28 +258,7 @@ int main(int argc, char const *argv[])
     printf("Au revoir\n");
 
     // On supprime toutes les infos client du systeme (donc ses reservations, son attribution à un sem de notification et à un id ...)
-    //supprimerClient();
-    p_att->tabNotif[numSemNotif] = -1; // supprimer le semaphore de l'utilisateur
-    char buffer[30] = {'\0'};
-    strcpy(p_att->tabId[idClient-1],buffer);
-
-    // libération des ressources
-    lockSysteme(sem_id);
-        ressourceLoue.type = 2; // libération
-        updateSysteme(p_att, &ressourceLoue);
-    unlockSysteme(sem_id);
-
-    // envoie Notification car on a libérer les ressources avant de quitter
-    if(emmetreNotif(sem_idNotif) == -1){
-        perror(BRED "Erreur : lors de l'envoie des notifications" reset);
-    }
-
-    // détachement du segment mémoire
-    int dtres = shmdt(p_att); 
-    if(dtres == -1){
-        perror(BRED "Erreur : shmdt -> lors du détachement du segment mémoire." reset);
-        exit(1);
-    }
+    fermerClient(idClient, numSemNotif, p_att, &ressourceLoue ,shm_id, sem_id, sem_idNotif);
 
     return 0;
 }

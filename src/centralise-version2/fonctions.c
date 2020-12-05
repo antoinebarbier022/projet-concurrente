@@ -34,7 +34,7 @@ int initSysteme(SystemState_s *s,const char* nomFichier){
         printf(BRED "Erreur : Impossible d'ouvrir le fichier d'initialisation des sites\n" reset);
         return -1;
     }
-    
+    s->nbClientConnecte=0;
     char name[30];
     int id, cpu, sto;
     id = 0;
@@ -100,7 +100,7 @@ void afficherSysteme(SystemState_s *s){
     printf(BCYN"\n┣━━━━━━╋━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━┫"  );
     printf("\n" CYN);
     for(int i=0;i<s->nbSites;i++){
-        printf("┃ %-4d ┃ %-15s ┃ %-5.0f   %-6.0f ┃ %-5.0f %-6.0f ┃\n",   
+        printf("┃ %-4d ┃ %-15s ┃ %-5.0f   %-6.0f ┃ %-5.0f  %-5.0f ┃\n",   
                 s->sites[i].id,
                 s->sites[i].nom, 
                 s->sites[i].resCpuExFree,
@@ -132,6 +132,27 @@ void afficherRessourcesLoue(Requete_s *ressourceLoue){
     }
     printf("\n" reset);
 }
+/*
+void affichageReservations(SystemState_s *s){
+
+    for(int i=0;i<s->nbSites;i++){
+        printf("[%d] %s :\n",s->sites[i].id,s->sites[i].nom );
+            while(){
+                if()
+            }
+            printf("\n  - [Site %d] : %d cpu, %d Go ",  
+                s->tabDemande[i].idSite, 
+                s->tabDemande[i].cpu, 
+                s->tabDemande[i].sto);
+
+                printf("[mode exclusif]");
+
+                printf("[mode partagé]");
+
+        }
+    }
+
+}*/
 
 void updateSysteme(SystemState_s *s, Requete_s *r){
     
@@ -289,7 +310,7 @@ int saisieTypeAction(){
         cin >> type;
         if(!cin){
             printf(BRED "Erreur : La saisie est incorrect.\n" reset);
-            exit(1);
+            type = 3; // quitter
         }
         if(type != 1 && type != 2 && type != 3){
             printf(BRED "Erreur : La saisie est incorrect.\n" reset);
@@ -299,18 +320,17 @@ int saisieTypeAction(){
     return type;
     
 }
-void saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue){
+int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue){
     int inputId, inputMode, inputCpu, inputSto;
     printf("\n\nLa demande doit correspondre à ce format :");
     printf(BHWHT" idSite mode cpu stockage\n" reset);
     printf("Pour le mode : [1 = exclusif] et [2 = partagé]\n");
     
-    int correct;
-    do{
+    //int correct;
+    //do{
         printf("Demande de ressource : ");
         cin >> inputId >> inputMode >> inputCpu >> inputSto;
         printf("\n");
-        int correct = 1;
         if(!cin){
             // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
             printf(BRED "\nErreur : La demande doit correspondre à ce format : id mode cpu sto\n");
@@ -319,7 +339,8 @@ void saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue){
                 printf("\tcpu  : Le nombre de CPU demandé \n");
                 printf("\tsto  : Le nombre de Go de stockage demandé \n");
                 printf(reset);
-            exit(1); 
+            return -1;
+            
         }else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
             //printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
             // Sinon on entre la demande
@@ -329,40 +350,46 @@ void saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue){
                 while(i<NBSITEMAX){
                     if(inputId == ressourceLoue->tabDemande[i].idSite){
                         perror(BRED "Erreur : Vous avez déja reserver des ressources sur ce site. Il faut libérer les ressources reservé avant de faire une nouvelle demande.\n" reset);
-                        correct = -1;
+                        
                         r->nbDemande--; // on annule la demande
+                        return -1;
                         //exit(1); 
                     }
                     i++;
                 }
             }
             r->nbDemande++;
-            if(r->nbDemande > NBSITEMAX && correct != -1){ // NBSITEMAX car c'est le nombre de site max
+            if(r->nbDemande > NBSITEMAX){ // NBSITEMAX car c'est le nombre de site max
                 printf(BRED "Erreur : le nombre de demande ne peux pas être supérieur au nombre de site.\n" reset);
-                correct = -1;
+               
                 r->nbDemande--; // on annule la demande
+                return -1;
                 //exit(1); 
             }else{
+            
                 if(inputMode == 2 || inputMode == 1){
                     // on place les données demandé dans la structure
                     r->tabDemande[r->nbDemande - 1] = {inputId, inputMode, inputCpu, inputSto};
                 }else{
                     perror(BRED "Erreur : le mode doit être 1 pour le <mode exclusif> ou 2 pour le <mode partagé>" reset);
-                    correct = -1;
+                    
                     r->nbDemande--; // on annule la demande
+                    return -1;
                     //exit(1); 
                 }
+        
             }
         }
-    }while(correct == -1);
+    //}while(correct == -1);
+    return 1;
 }
-void saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue){
+int saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue){
     int inputIdSite;
     printf("\n\nSur quelle site veux-tu libérer les ressources ? \nSite : ");
     cin >> inputIdSite;
     if(!cin){
         printf(BRED "Erreur : entrée non attendu" reset);
-         exit(1); 
+        return -1;
     }else{
         int i = 0;
         int trouve = 0;
@@ -380,6 +407,7 @@ void saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue){
             i++;
         }
     }
+    return 1;
 }
 
 int demandeRessourceValide(SystemState_s *s, Requete_s *r){
@@ -569,4 +597,29 @@ int emmetreNotif(int idTabSem){
     return 1;
 }
 
-void supprimerClient(){}
+void fermerClient(int idClient, int numSemNotif, struct SystemState_s *p_att, Requete_s *ressourceLoue, int shm_id, int sem_id, int sem_idNotif){
+    // libération des ressources
+    lockSysteme(sem_id);
+        p_att->tabNotif[numSemNotif] = -1; // supprimer le semaphore de l'utilisateur
+        char buffer[30] = {'\0'};
+        strcpy(p_att->tabId[idClient-1],buffer);
+        p_att->nbClientConnecte--;
+        ressourceLoue->type = 2; // libération
+        updateSysteme(p_att, ressourceLoue);
+    unlockSysteme(sem_id);
+
+    // envoie une notification si on a des ressources à libérer avant de quitter
+    if(ressourceLoue->nbDemande>0){
+        if(emmetreNotif(sem_idNotif) == -1){
+            perror(BRED "Erreur : lors de l'envoie des notifications" reset);
+        }
+    }
+
+
+    // détachement du segment mémoire
+    int dtres = shmdt(p_att); 
+    if(dtres == -1){
+        perror(BRED "Erreur : shmdt -> lors du détachement du segment mémoire." reset);
+        exit(1);
+    }
+}
