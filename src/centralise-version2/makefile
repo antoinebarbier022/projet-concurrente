@@ -1,8 +1,8 @@
-OBJS	= server.o client.o
-OBJ_CLIENT = client.o
-OBJ_SERVER = server.o
-SOURCE	= server.c client.c
-HEADER	= struct.h
+OBJS	= server.o client.o fonctions.o
+OBJ_CLIENT = client.o fonctions.o
+OBJ_SERVER = server.o fonctions.o
+SOURCE	= server.c client.c fonctions.c
+HEADER	= struct.h fonctions.h
 OUT		= exec
 OUTS	= server #out server
 OUTC	= client #out client

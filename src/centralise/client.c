@@ -136,7 +136,7 @@ int demandeTypeAction(){
     if(type[0] == '2' || type[0] == '1'){
         return atoi(type);
     }else{
-        return -1;
+        return -1;0
     }
 }
 

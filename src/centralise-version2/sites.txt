@@ -1,0 +1,5 @@
+Montpellier : 500 50
+Toulouse    : 10 200
+Lyon        : 1 46
+Marseille : 500 2000
+Paris       : 300 500
