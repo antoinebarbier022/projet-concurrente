@@ -12,7 +12,6 @@
 #include <pthread.h>
 #include <signal.h>
 
-
 using namespace std;
 
 // Variables global (pour pouvoir les utiliser dans le signal)
@@ -25,28 +24,28 @@ Requete_s ressourceLoue;
 
 // signal ctrl-c
 void signal_callback_handler(int signum){
-
     fermerClient(idClient, numSemNotif, p_att, &ressourceLoue ,shm_id, sem_id, sem_idNotif);
-
     printf(BRED "\nFin du programme : Fermeture du client via ctrl-c\n" reset);
     exit(signum);
 }
-
-// Ma fonction Thread
-// passer en parametre le l'id segment memoire, le numero
     
 void* threadAffichageSysteme(void* p){
     while(1){
+        // Lire une notification quand elle apparait
         struct sembuf lireNotif = {(u_short)numSemNotif,(short)-1,SEM_UNDO};
         semop(sem_idNotif,&lireNotif,1);
+
         if(semctl(sem_idNotif, numSemNotif, GETVAL) == -1){
+            // Si on arrive pas à lire le semaphore c'est qu'il y a un prblème, donc on quitte le thread
             pthread_exit(p);
         } 
+
         lockSysteme(sem_id); // lock
             printf("\e[1;1H\e[2J");// efface la console
             printf(BMAG "[Notification reçut !]\n" reset);
             afficherSysteme(p_att);
         unlockSysteme(sem_id); //unlock
+
         afficherRessourcesLoue(&ressourceLoue);
         
     }
@@ -71,14 +70,17 @@ void* threadTerminerProgramme(void* p){
     
 int main(int argc, char const *argv[])
 {   
+    // pour gérer le ctrl-c
     signal(SIGINT, signal_callback_handler);
-    if(argc != 3){
-        printf(BRED "\nlancement : ./server chemin_fichier_cle nomClient\n\n" reset);
+
+    if(argc != 2){
+        printf(BRED "\nlancement : ./client nomClient\n\n" reset);
         return -1;
     }
+    const char* nomClient = argv[1];
 
-    key_t cle = ftok(argv[1], 'e'); // récuperer l'identifiant ddu segment mémoire
-    key_t cle_sem = ftok(argv[1], 'u'); // tableau site
+    key_t cle = ftok("ipc.txt", 'e'); // récuperer l'identifiant ddu segment mémoire
+    key_t cle_sem = ftok("ipc.txt", 'u'); // tableau site
     key_t cle_semNotif = ftok("notif.txt", 'n'); // tableau notification
     
     // identification/création du segment mémoire pour l'état du système
@@ -92,7 +94,7 @@ int main(int argc, char const *argv[])
     //attachement au segement memoire
     p_att = (struct SystemState_s*)shmat(shm_id,NULL,0); 
     if((struct SystemState_s*)p_att == (void*)-1) {
-        printf(BRED "\nMessage : Impossible de ce connecter au server\n" reset);
+        printf(BRED "\nMessage : Impossible de ce connecter au server \n" reset);
         printf(BRED "Erreur [shmat] : Attachement au segment mémoire\n\n" reset);
         exit(1);
     }
@@ -122,23 +124,16 @@ int main(int argc, char const *argv[])
         struct seminfo *__buf;  // cmd= IPC_INFO (sous linux)
     }egCtrl;
 
-    //Algorithme du client :
-
-    // Quand un client ce connecte : 
-    //   - lui donner un identifiant (prendre la premiere case vide du tableau)
-    //   - lui donner un numero de semaphore de notification
-
     printf("\e[1;1H\e[2J");// efface la console
-    const char* nomClient = argv[2];
     lockSysteme(sem_id);
         idClient =      attribuerIdentifiantClient(p_att, nomClient);
         numSemNotif =   attribuerNumSemNotification(p_att, idClient);
         p_att->nbClientConnecte++;
 
         printf(BWHT);
-            printf("Nom d'utilisateur : %s\n", nomClient);
-            printf("Id client : %d \n",idClient);
-            printf("Num semNotif : %d \n",numSemNotif);
+            printf("Nom d'utilisateur  : %s\n", nomClient);
+            printf("Identifiant        : %d \n",idClient);
+            printf("Num semNotif       : %d \n",numSemNotif);
         printf(reset);
 
         afficherSysteme(p_att);
@@ -146,22 +141,21 @@ int main(int argc, char const *argv[])
 
     egCtrl.val = 0;
     if(semctl(sem_idNotif, numSemNotif, SETVAL, egCtrl) == -1){  // On SETVAL pour le sémaphore numero 0
-        perror(BRED "Erreur : initialisation [sémaphore 0]" reset);
+        perror(BRED "Erreur : initialisation sémaphore" reset);
         return -1;
     }
 
     pthread_t thread;
     if(pthread_create (&thread, NULL, threadAffichageSysteme, NULL)){
         printf("Erreur: Impossible de créer le thread d'affichage");
-        exit(-1);
+        return -1;
     }
-
 
     pthread_t finProgramme;
     if(pthread_create (&finProgramme, NULL, threadTerminerProgramme, NULL)){
         printf(BRED "Erreur [pthread_create]: Création du thread finProgramme" reset);
+        return -1;
     }
-
 
     //Requete_s ressourceLoue; // tableau qui contient tous les sites déjà reservé
     ressourceLoue.nbDemande = 0;
@@ -179,14 +173,11 @@ int main(int argc, char const *argv[])
         requete.type = typeDemande;
         requete.idClient = idClient;
         
-
-        //requete.nbDemande = 1;
-        //requete.tabDemande[0]={2,2,7,0};
         if(typeDemande == 1 || typeDemande == 2){
             int continuer = 1;
             do{
                 if(typeDemande == 1){
-                    // on verifie en meme temps que le site n'est pas déja louer
+                    // on verifie en même temps que le site n'est pas déja louer
                     if(saisieDemandeRessource(&requete, &ressourceLoue) == -1){ // on saisie une demande
                         printf(BRED "Erreur : Saisie de la reservation non valide\n" reset);
                         return -1; 
@@ -196,9 +187,9 @@ int main(int argc, char const *argv[])
                         printf(BRED "Erreur : Avant de pouvoir libérer des ressources, il faut en louer\n" reset);
                         return -1; 
                     }
-                    // on verifie en meme temps que le site est bien déja louer
+                    // on verifie en même temps que le site est bien déja louer
                     if(saisieDemandeLiberation(&requete, &ressourceLoue) == -1){ // on saisie une demande
-                        printf(BRED "Erreur : Saisie de la reservation non valide\n" reset);
+                        printf(BRED "Erreur : Saisie de la libération non valide\n" reset);
                         return -1; 
                     } 
                 }
@@ -219,7 +210,6 @@ int main(int argc, char const *argv[])
                         fermerClient(idClient, numSemNotif, p_att, &ressourceLoue ,shm_id, sem_id, sem_idNotif);
                     }
                 }
-                
             }while(continuer);
         
 
@@ -228,31 +218,29 @@ int main(int argc, char const *argv[])
                 if(demandeValide(p_att, &requete) == 1){
                     //preparer les opérations sembuf
                     struct sembuf *op = (struct sembuf*)malloc(4*p_att->nbSites*sizeof(struct sembuf));
-                    //struct sembuf op[NBOPMAXRESSOURCE];
                     int nbOp = initOp(op,&requete);
+
                     unlockSysteme(sem_id); // unlock
                         printf("Attente ...\n");
                         semop(sem_id,op,nbOp);
                         printf("Demande accepté !\n");
                     lockSysteme(sem_id); //lock
-                    //updateSystem2(p_att, sem_idNotif);
+
                     updateSysteme(p_att, &requete);
                     updateRessourceLoueLocal(&requete,&ressourceLoue);
                     free(op);
 
                     // Quand il y a une notif tous les semaphores sont à 1
                     // le code qui suit est l'emission d'une notification
-
                     if(emmetreNotif(sem_idNotif)== -1){
                         perror(BRED "Erreur : lors de l'envoie des notifications" reset);
                     }
- 
-                    
                 }else{
                     //message d'erreur déja dans la fonction
                 }
             unlockSysteme(sem_id);//unlock
         }
+        // Ce sleep permet d'attendre 1seconde avant de redemander une saisie 
         sleep(1);
     }
     printf("Au revoir\n");

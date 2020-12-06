@@ -12,20 +12,7 @@
 
 using namespace std;
 
-void afficherSystemeInitial(SystemState_s *s){
-    printf("\033[36m "); // couleur du texte
-    printf("\nEtat du système : (%d sites)\n", s->nbSites);
-    for(int i=0;i<s->nbSites;i++){
-        printf("  - %-15s[id=%d] : %-4d cpu, %-4d Go, nbResExclusif : %-4d, nbResShare : %-4d \n",   
-                s->sites[i].nom, 
-                s->sites[i].id, 
-                s->sites[i].cpu ,
-                s->sites[i].sto ,
-                s->sites[i].nbMaxClientEx,
-                s->sites[i].nbMaxClientSh);
-    }
-    printf("\033[m\n");
-}
+
 int initSysteme(SystemState_s *s,const char* nomFichier){
 
     FILE* fichier = NULL;
@@ -90,27 +77,30 @@ int initSysteme(SystemState_s *s,const char* nomFichier){
     return 1;
 }
 
-
-// Fonctions pour le client
 void afficherSysteme(SystemState_s *s){
     printf(BCYN"\n         Etat du système : Ressources disponible" reset );
-    printf(BCYN"\n┏━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓"  );
-    printf(BCYN"\n┃      ┃       Nom       ┃    Exclusif    ┃   Partagé    ┃"  );
-       printf( "\n┃  id  ┃   Nom du site   ┃  cpu      sto  ┃  cpu    sto  ┃  " reset);
-    printf(BCYN"\n┣━━━━━━╋━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━┫"  );
+    printf(BCYN"\n┏━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┓"  );
+    printf(BCYN"\n┃      ┃       Nom       ┃      Exclusif        ┃          Partagé         ┃"  );
+       printf( "\n┃  id  ┃   Nom du site   ┃   cpu        sto     ┃     cpu         sto      ┃  " reset);
+    printf(BCYN"\n┣━━━━━━╋━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━┫"  );
     printf("\n" CYN);
     for(int i=0;i<s->nbSites;i++){
-        printf("┃ %-4d ┃ %-15s ┃ %-5.0f   %-6.0f ┃ %-5.0f  %-5.0f ┃\n",   
+        printf("┃ %-4d ┃ %-15s ┃ %3.0f/%-3d  %5.0f/%-5d ┃ %5.0f/%-4d  %5.0f/%-6d ┃\n",   
                 s->sites[i].id,
                 s->sites[i].nom, 
                 s->sites[i].resCpuExFree,
+                s->sites[i].cpu,
                 s->sites[i].resStoExFree,
+                s->sites[i].sto,
                 s->sites[i].resCpuShFree,
-                s->sites[i].resStoShFree);
+                s->sites[i].cpu*CPUSHARED, // multiplier par le nombre de partage d'un cpu
+                s->sites[i].resStoShFree,
+                s->sites[i].sto*CPUSHARED);
     }
-    printf(BCYN"┗━━━━━━┻━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━┛"  );
+    printf(BCYN"┗━━━━━━┻━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━┛"  );
     printf("\n" reset); // reset color
 }
+
 void afficherRessourcesLoue(Requete_s *ressourceLoue){
     printf(BHGRN "\nRessource loués :");
     if(ressourceLoue->nbDemande != 0){
@@ -132,27 +122,6 @@ void afficherRessourcesLoue(Requete_s *ressourceLoue){
     }
     printf("\n" reset);
 }
-/*
-void affichageReservations(SystemState_s *s){
-
-    for(int i=0;i<s->nbSites;i++){
-        printf("[%d] %s :\n",s->sites[i].id,s->sites[i].nom );
-            while(){
-                if()
-            }
-            printf("\n  - [Site %d] : %d cpu, %d Go ",  
-                s->tabDemande[i].idSite, 
-                s->tabDemande[i].cpu, 
-                s->tabDemande[i].sto);
-
-                printf("[mode exclusif]");
-
-                printf("[mode partagé]");
-
-        }
-    }
-
-}*/
 
 void updateSysteme(SystemState_s *s, Requete_s *r){
     
@@ -233,6 +202,7 @@ void updateSysteme(SystemState_s *s, Requete_s *r){
     
 
 }
+
 void updateRessourceLoueLocal(Requete_s *r, Requete_s *ressourceLoue){
     //enregistrer le contenue de la requete
     for(int i=0;i<r->nbDemande;i++){
@@ -270,11 +240,11 @@ void updateRessourceLoueLocal(Requete_s *r, Requete_s *ressourceLoue){
     }
 }
 
-
 void lockSysteme(int sem_id){
     struct sembuf op = {(u_short)0,(short)-1,SEM_UNDO};
     semop(sem_id,&op,1);
 }
+
 void unlockSysteme(int sem_id){
     struct sembuf op = {(u_short)0,(short)+1,SEM_UNDO};
     semop(sem_id,&op,1);
@@ -289,6 +259,7 @@ int attribuerIdentifiantClient(SystemState_s *s, const char* nom){
     strcpy(s->tabId[id], nom);
     return id+1; // l'id sera sur l'index id-1 du tableau
 }
+
 int attribuerNumSemNotification(SystemState_s *s, int id){
     int i = 1; // on commence à 1 car le 0 est reservé au parent pour le test
     int numSem = -1;
@@ -320,69 +291,65 @@ int saisieTypeAction(){
     return type;
     
 }
+
 int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue){
     int inputId, inputMode, inputCpu, inputSto;
     printf("\n\nLa demande doit correspondre à ce format :");
     printf(BHWHT" idSite mode cpu stockage\n" reset);
     printf("Pour le mode : [1 = exclusif] et [2 = partagé]\n");
     
-    //int correct;
-    //do{
-        printf("Demande de ressource : ");
-        cin >> inputId >> inputMode >> inputCpu >> inputSto;
-        printf("\n");
-        if(!cin){
-            // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
-            printf(BRED "\nErreur : La demande doit correspondre à ce format : id mode cpu sto\n");
-                printf("\tid   : l'identifiant du site \n");
-                printf("\tmode : Exclusif (1) ou Partagé (2)\n");
-                printf("\tcpu  : Le nombre de CPU demandé \n");
-                printf("\tsto  : Le nombre de Go de stockage demandé \n");
-                printf(reset);
-            return -1;
-            
-        }else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
-            //printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
-            // Sinon on entre la demande
+    printf("Demande de ressource : ");
+    cin >> inputId >> inputMode >> inputCpu >> inputSto;
+    printf("\n");
+    if(!cin){
+        // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
+        printf(BRED "\nErreur : La demande doit correspondre à ce format : id mode cpu sto\n");
+            printf("\tid   : l'identifiant du site \n");
+            printf("\tmode : Exclusif (1) ou Partagé (2)\n");
+            printf("\tcpu  : Le nombre de CPU demandé \n");
+            printf("\tsto  : Le nombre de Go de stockage demandé \n");
+            printf(reset);
+        return -1;
+        
+    }else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
+        //printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
+        // Sinon on entre la demande
 
-            if(ressourceLoue->nbDemande > 0){
-                int i=0;
-                while(i<NBSITEMAX){
-                    if(inputId == ressourceLoue->tabDemande[i].idSite){
-                        perror(BRED "Erreur : Vous avez déja reserver des ressources sur ce site. Il faut libérer les ressources reservé avant de faire une nouvelle demande.\n" reset);
-                        
-                        r->nbDemande--; // on annule la demande
-                        return -1;
-                        //exit(1); 
-                    }
-                    i++;
-                }
-            }
-            r->nbDemande++;
-            if(r->nbDemande > NBSITEMAX){ // NBSITEMAX car c'est le nombre de site max
-                printf(BRED "Erreur : le nombre de demande ne peux pas être supérieur au nombre de site.\n" reset);
-               
-                r->nbDemande--; // on annule la demande
-                return -1;
-                //exit(1); 
-            }else{
-            
-                if(inputMode == 2 || inputMode == 1){
-                    // on place les données demandé dans la structure
-                    r->tabDemande[r->nbDemande - 1] = {inputId, inputMode, inputCpu, inputSto};
-                }else{
-                    perror(BRED "Erreur : le mode doit être 1 pour le <mode exclusif> ou 2 pour le <mode partagé>" reset);
+        if(ressourceLoue->nbDemande > 0){
+            int i=0;
+            while(i<NBSITEMAX){
+                if(inputId == ressourceLoue->tabDemande[i].idSite){
+                    perror(BRED "Erreur : Vous avez déja reserver des ressources sur ce site. Il faut libérer les ressources reservé avant de faire une nouvelle demande.\n" reset);
                     
                     r->nbDemande--; // on annule la demande
                     return -1;
-                    //exit(1); 
                 }
-        
+                i++;
             }
         }
-    //}while(correct == -1);
+        r->nbDemande++;
+        if(r->nbDemande > NBSITEMAX){ // NBSITEMAX car c'est le nombre de site max
+            printf(BRED "Erreur : le nombre de demande ne peux pas être supérieur au nombre de site.\n" reset);
+            
+            r->nbDemande--; // on annule la demande
+            return -1;
+        }else{
+        
+            if(inputMode == 2 || inputMode == 1){
+                // on place les données demandé dans la structure
+                r->tabDemande[r->nbDemande - 1] = {inputId, inputMode, inputCpu, inputSto};
+            }else{
+                perror(BRED "Erreur : le mode doit être 1 pour le <mode exclusif> ou 2 pour le <mode partagé>" reset);
+                
+                r->nbDemande--; // on annule la demande
+                return -1;
+            }
+    
+        }
+    }
     return 1;
 }
+
 int saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue){
     int inputIdSite;
     printf("\n\nSur quelle site veux-tu libérer les ressources ? \nSite : ");
@@ -455,6 +422,7 @@ int demandeRessourceValide(SystemState_s *s, Requete_s *r){
     }
     return 1;
 }
+
 int demandeLiberationValide(SystemState_s *s, Requete_s *r){
    int idSiteDemande;
    int i = 0;
@@ -467,6 +435,7 @@ int demandeLiberationValide(SystemState_s *s, Requete_s *r){
    }
    return 1;
 }
+
 int demandeValide(SystemState_s *s, Requete_s *r){
     if(r->type == 1){
         if(demandeRessourceValide(s,r) == -1){
@@ -525,8 +494,6 @@ int initTableauSemSites(int sem_id, SystemState_s *s){
     return 1;
 }
 
-
-// on initialise le sembuf des ressources
 int initOp(struct sembuf *op, Requete_s *r){
     int t = (r->type == 1 ? -1 : 1); // soit -1 pour une demande soit 1 pour une liberation de reservation
     // Buffer Demande

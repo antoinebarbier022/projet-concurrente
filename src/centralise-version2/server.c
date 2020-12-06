@@ -16,22 +16,24 @@
 
 using namespace std;
 
+// variable globale pour le signal
 int nbNotif = 0;
 struct SystemState_s* p_att;
-int sem_idNotif, sem_id;
+int sem_idNotif, sem_id, shm_id;
 
-// variable globale pour le signal
-int shm_id;
+
+
 void signal_callback_handler(int signum){
     // Destruction du segment mémoire
     shmctl(shm_id,0,IPC_RMID);
+    semctl(sem_id,0,IPC_RMID);
+    semctl(sem_idNotif,0,IPC_RMID);
     cout << "\nDestruction Segment mémoire ..." << endl;
     cout << "Fermeture du server\n" << endl;
     exit(signum);
 }
 
 void* threadAffichageSysteme(void* p){
-
     while(1){
         struct sembuf lireNotif = {(u_short)0,(short)-1,SEM_UNDO};
         semop(sem_idNotif,&lireNotif,1);
@@ -39,44 +41,47 @@ void* threadAffichageSysteme(void* p){
             //Information : Fermeture du thread affichage car le semaphore de notification n'existe plus.
             pthread_exit(p);
         } 
+
         lockSysteme(sem_id); // lock
             printf("\e[1;1H\e[2J");// efface la console
-            //++nbNotif;
-            //printf(BMAG "[Notification reçut !]\n" reset);
             afficherSysteme(p_att);
         unlockSysteme(sem_id); //unlock
-            time_t s = time(NULL);
-    struct tm* current_time = localtime(&s);
-        printf(BWHT " \nDernière Modification : ");
+
+        time_t s = time(NULL);
+        struct tm* current_time = localtime(&s);
+        printf(BWHT "\n Dernière Modification : ");
         printf("%02d:%02d:%02d\n",
            current_time->tm_hour,
            current_time->tm_min,
            current_time->tm_sec);
+
         lockSysteme(sem_id);
             printf(" Nombre de client : %d\n\n", p_att->nbClientConnecte);
         unlockSysteme(sem_id);
+
         printf(reset "Appuyer sur une touche pour arreter le server ...\n" );
-        //printf(BMAG "[Fin notification!]\n" reset);
     }
 }
 
 int main(int argc, char const *argv[])
 {
-    // pour gérer le ctrl c et détruire le segment système
+    // pour gérer le ctrl-c et détruire le segment système
     signal(SIGINT, signal_callback_handler);
+
     printf("Lancement du server\n");
     printf("Importation des sites depuis le fichier sites.txt ...\n");
-    sleep(1);
+    sleep(1); // sleep pour ne pas afficher les messages trop rapidement
+    
     SystemState_s etatSysteme;
     if(initSysteme(&etatSysteme,"sites.txt") == -1){
         return -1;
     }
 
-    key_t cle = ftok(argv[1], 'e'); // récuperer l'identifiant ddu segment mémoire
-    key_t cle_sem = ftok(argv[1], 'u'); // tableau site
-    key_t cle_semNotif = ftok("notif.txt", 'n'); // tableau notification
+    key_t cle = ftok(argv[1], 'e');                 // récuperer l'identifiant du segment mémoire
+    key_t cle_sem = ftok(argv[1], 'u');             // récuperer l'identifiant du tableau sémaphores site
+    key_t cle_semNotif = ftok("notif.txt", 'n');    // récuperer l'identifiant du tableau sémaphores  notification
     
-    // identification/création du segment mémoire pour l'état du système
+    // création du segment mémoire pour l'état du système
     shm_id = shmget(cle, sizeof(SystemState_s), IPC_CREAT|0666); 
     if(shm_id == -1) {
         perror(BRED "Erreur [shmget] : La création du segment mémoire" reset);
@@ -85,7 +90,7 @@ int main(int argc, char const *argv[])
         printf("Création du segment mémoire [%d]\n",shm_id);
     }
 
-    // identification/création du tableau de sémaphores des ressources des sites
+    // création du tableau de sémaphores des ressources des sites
     int nbSemaphore = 4*etatSysteme.nbSites +1; 
     sem_id = semget(cle_sem, nbSemaphore, IPC_CREAT|0666);
     if(sem_id == -1) {
@@ -93,7 +98,7 @@ int main(int argc, char const *argv[])
         return -1;
     }
     
-    // identification/création du tableau de sémaphores des notifications client
+    // création du tableau de sémaphores des notifications client
     int nbNotif = NBCLIENTMAX; // nombre d'utilisateur max
     sem_idNotif = semget(cle_semNotif, nbNotif, IPC_CREAT|0666);
     if(sem_id == -1) {
@@ -101,17 +106,13 @@ int main(int argc, char const *argv[])
         return -1;
     }
 
+    // Initialisation du tableau de sémaphore avec les ressources des sites + le sémaphore 0 qui protège le segment mémoire
     if(initTableauSemSites(sem_id,&etatSysteme) == -1){
         perror(BRED "Erreur : L'initialisation du tableau de semaphores (ressources des sites)" reset);
         return -1;
     }
 
-    /*
-    // semaphore 0 pour le server
-    if(initTableauSemNotif(sem_idNotif, 0) == -1){
-        perror(BRED "Erreur : L'initialisation du tableau de semaphores (notifications)" reset);
-        return -1;
-    }*/
+    
     union semun{
         int val;                // cmd= SETVAL
         struct semid_ds *buf;   // cmd= IPC_STAT ou IPC_SET
@@ -119,27 +120,26 @@ int main(int argc, char const *argv[])
         struct seminfo *__buf;  // cmd= IPC_INFO (sous linux)
     }egCtrl;
     
-
+    // On initialise le tableau de sémaphore notification à 0
     egCtrl.val =0;
     for(int i=0;i<NBCLIENTMAX;i++){
-        if(semctl(sem_idNotif, i, SETVAL, egCtrl) == -1){  // On SETVAL pour le sémaphore numero 0
+        if(semctl(sem_idNotif, i, SETVAL, egCtrl) == -1){  
             perror(BRED "Erreur : initialisation [sémaphore 0]" reset);
             return -1;
         }
     }
-     
 
-
-    //attachement au segement memoire
+    // attachement au segement memoire
     p_att = (struct SystemState_s*)shmat(shm_id,NULL,0); 
     if((struct SystemState_s*)p_att == (void*)-1) {
         perror(BRED "Erreur [shmat] : L'attachement au segment mémoire" reset);
         exit(1);
     }
 
-    // on initialise le segment de mémoire
+    // on initialise le segment de mémoire pour qu'il contienne l'état du système
     *p_att = etatSysteme;
 
+    // Création du thread qui s'occupe de l'affichage quand il y a une notification
     pthread_t thread;
     if(pthread_create (&thread, NULL, threadAffichageSysteme, NULL)){
         printf(BRED "Erreur [pthread_create]: Création du thread Affichage" reset);
@@ -150,19 +150,14 @@ int main(int argc, char const *argv[])
 
     printf("Appuyer sur une touche pour arreter le server ... ");
 
-    //pthread_join(thread, NULL);
     // Attendre une réponse pour arrêter le server
     int touche;
     cin >> touche;
-
-
-
 
     // détachement du segment mémoire
     int dtres = shmdt(p_att); 
     if(dtres == -1){
         perror(BRED "Erreur : shmdt -> lors du détachement du segment mémoire." reset);
-        exit(1);
     }
 
     // Destruction du segment mémoire
@@ -170,7 +165,7 @@ int main(int argc, char const *argv[])
     semctl(sem_id,0,IPC_RMID);
     semctl(sem_idNotif,0,IPC_RMID);
     
-    cout << endl << "Destruction Segment mémoire ..." << endl;
+    cout << endl << "Destruction des objets IPC ..." << endl;
     cout << "Fermeture du server\n" << endl;
     
     return 0;

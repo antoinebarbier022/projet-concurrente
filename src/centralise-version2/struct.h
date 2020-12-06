@@ -1,7 +1,6 @@
 #ifndef H_GL_STRUCT
 #define H_GL_STRUCT
 
-// 
 #define NBCPUMAX_EXCLUSIF 500
 #define CPUSHARED 4 // un cpu peut etre partagé par 4
 #define NBSITEMAX 100
@@ -9,13 +8,8 @@
 
 #define NBCPUMAX_SHARE CPUSHARED*NBCPUMAX_EXCLUSIF
 #define NBCLIENTMAX NBCPUMAX_SHARE
-#define NBOPMAXRESSOURCE 4*NBSITEMAX // Car un site à 4 semaphore
+#define NBOPMAXRESSOURCE 4*NBSITEMAX // Car un site à 4 semaphores
 
-/*
- * This is free and unencumbered software released into the public domain.
- *
- * For more information, please refer to <https://unlicense.org>
- */
 
 //Regular text
 #define BLK "\e[0;30m"
@@ -103,37 +97,33 @@ typedef struct Demande_s Demande_s;
 
 
 struct Use_s{
-    int     isUse;              
-    int     idClient;
-    int     cpu;               // Nombre de cpu utilisé par le client 
-    int     sto;               // Nombre de Stockage en Go utilisé par le client
+    int     isUse;                  // Booleen pour savoir si cette structure est remplie
+    int     idClient;               // Identifiant du client
+    int     cpu;                    // Nombre de cpu utilisé par le client 
+    int     sto;                    // Nombre de Stockage en Go utilisé par le client
 };
 
 struct Site_s{
-    int     id;                 // identifiant du site
-    char    nom[NBSIZEMAXNAME];
-    int     cpu;                // Nombre de CPU total sur le site
-    int     sto;                // Nombre de Stockage total sur le site
+    int     id;                         // identifiant du site
+    char    nom[NBSIZEMAXNAME];         // nom du client de taille NBSIZEMAXNAME maximum
+    int     cpu;                        // Nombre de CPU total sur le site
+    int     sto;                        // Nombre de Stockage total sur le site
 
-    float     resCpuExFree;
-    float     resCpuShFree;
-    float     resStoExFree;
-    float     resStoShFree;
+    float     resCpuExFree;             // Nombre de cpu restant en exclusif
+    float     resCpuShFree;             // Nombre de cpu restant en partagé
+    float     resStoExFree;             // Nombre de stockage restant en exclusif
+    float     resStoShFree;             // Nombre de stockage restant en partagé
 
-    int     nbMaxClientEx;               
-    int     nbMaxClientSh;                      
+    int     nbMaxClientEx;              // Nombre de client maximum dans le tableau exclusif
+    int     nbMaxClientSh;              // Nombre de client maximum dans le tableau partagé
     Use_s   tabUseExclusif[NBCPUMAX_EXCLUSIF];
     Use_s   tabUseShare[NBCPUMAX_SHARE];          
 };
 
-    // mettre dans le systeme :
-    // - un tableau qui associe le nom avec un identifiant (index du tableau)
-    // - un tableau qui associe le nom avec un numero de semaphore de notif
-    // quand le client quitte on l'enlève du tableau
 
 struct SystemState_s{
-    char    tabId[NBCLIENTMAX][NBSIZEMAXNAME];    //tableau de string (les noms des clients et un idex qui est leur id)
-    int     tabNotif[NBCLIENTMAX];
+    char    tabId[NBCLIENTMAX][NBSIZEMAXNAME];      // tableau qui associe le nom du client avec un identifiant (index du tableau)
+    int     tabNotif[NBCLIENTMAX];                  // tableau qui associe le nom avec un numero de semaphore de notif
     int     nbClientConnecte;
     int     nbSites;                    // Taille du tableau sites
     Site_s  sites[NBSITEMAX];          // Tableau qui contient tous les sites présent dans l'état du système
@@ -157,8 +147,6 @@ struct Requete_s{
     int             nbDemande;
     Demande_s       tabDemande[NBSITEMAX];
 };
-
-
 
 
 #endif
