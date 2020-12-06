@@ -50,7 +50,7 @@ void* threadAffichageSysteme(void* p){
         time_t s = time(NULL);
         struct tm* current_time = localtime(&s);
         printf(BWHT "\n Dernière Modification : ");
-        printf("%02d:%02d:%02d\n",
+        printf("%02d:%02d.%02d\n",
            current_time->tm_hour,
            current_time->tm_min,
            current_time->tm_sec);

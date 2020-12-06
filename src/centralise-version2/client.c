@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <signal.h>
+#include <time.h>
 
 using namespace std;
 
@@ -21,6 +22,9 @@ int nbNotif = 0;
 struct SystemState_s* p_att;
 Requete_s ressourceLoue;
 
+int enAttenteRessource = 0;
+int attenteTypeAction = 0;
+int continuerDemande = 0;
 
 // signal ctrl-c
 void signal_callback_handler(int signum){
@@ -42,12 +46,27 @@ void* threadAffichageSysteme(void* p){
 
         lockSysteme(sem_id); // lock
             printf("\e[1;1H\e[2J");// efface la console
-            printf(BMAG "[Notification reçut !]\n" reset);
+            time_t s = time(NULL);
+            struct tm* current_time = localtime(&s);
+            printf(BMAG "[Notification reçut à %02d:%02d.%02d !]\n",current_time->tm_hour,current_time->tm_min,current_time->tm_sec);
+            printf(reset);
             afficherSysteme(p_att);
         unlockSysteme(sem_id); //unlock
-
-        afficherRessourcesLoue(&ressourceLoue);
-        
+        if(enAttenteRessource == 1){
+            printf("\nEn attente de la disponibilité des ressources demandé ...\n");
+        }else{
+            afficherRessourcesLoue(&ressourceLoue);
+            if(attenteTypeAction == 1){
+                printf("\nType action possible : \n - 1 : Demande de réservation");
+                printf("\n - 2 : Demande de libération\n - 3 : Quitter \nType action : \n");
+            }else{
+                if(continuerDemande == 1){
+                    printf("\nContinuer la demande de ressources : \n");
+                }else if(continuerDemande == 2){
+                    printf("\nContinuer la demande de libération : \n");
+                }
+            }
+        }
     }
 }
 
@@ -166,8 +185,9 @@ int main(int argc, char const *argv[])
     
     int typeDemande = 1; // 
     while(typeDemande != 3 ){
-        typeDemande = saisieTypeAction();
-
+        attenteTypeAction = 1; // pour l'affichage
+            typeDemande = saisieTypeAction();
+        attenteTypeAction = 0; // pour l'affichage
         Requete_s requete;
         requete.nbDemande = 0;
         requete.type = typeDemande;
@@ -177,6 +197,8 @@ int main(int argc, char const *argv[])
             int continuer = 1;
             do{
                 if(typeDemande == 1){
+                    continuerDemande = 1; // pour l'affichage dans le thread
+
                     // on verifie en même temps que le site n'est pas déja louer
                     if(saisieDemandeRessource(&requete, &ressourceLoue) == -1){ // on saisie une demande
                         printf(BRED "Erreur : Saisie de la reservation non valide\n" reset);
@@ -187,6 +209,7 @@ int main(int argc, char const *argv[])
                         printf(BRED "Erreur : Avant de pouvoir libérer des ressources, il faut en louer\n" reset);
                         return -1; 
                     }
+                    continuerDemande = 2; // pour l'affichage dans le thread
                     // on verifie en même temps que le site est bien déja louer
                     if(saisieDemandeLiberation(&requete, &ressourceLoue) == -1){ // on saisie une demande
                         printf(BRED "Erreur : Saisie de la libération non valide\n" reset);
@@ -211,7 +234,7 @@ int main(int argc, char const *argv[])
                     }
                 }
             }while(continuer);
-        
+            continuerDemande = 0;  // boolean pour l'affichage dans le thread
 
             printf("\n\nVérification de la requête ...\n");
             lockSysteme(sem_id); //lock
@@ -219,12 +242,13 @@ int main(int argc, char const *argv[])
                     //preparer les opérations sembuf
                     struct sembuf *op = (struct sembuf*)malloc(4*p_att->nbSites*sizeof(struct sembuf));
                     int nbOp = initOp(op,&requete);
-
+                    enAttenteRessource = 1; // je suis en attente 
+                    printf("\nEn attente de la disponibilité des ressources demandé ...\n");
                     unlockSysteme(sem_id); // unlock
-                        printf("Attente ...\n");
                         semop(sem_id,op,nbOp);
-                        printf("Demande accepté !\n");
                     lockSysteme(sem_id); //lock
+                    printf("Demande accepté !\n");
+                    enAttenteRessource = 0; // je suis en attente 
 
                     updateSysteme(p_att, &requete);
                     updateRessourceLoueLocal(&requete,&ressourceLoue);

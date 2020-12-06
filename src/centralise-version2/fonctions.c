@@ -104,7 +104,9 @@ void afficherSysteme(SystemState_s *s){
 void afficherRessourcesLoue(Requete_s *ressourceLoue){
     printf(BHGRN "\nRessource loués :");
     if(ressourceLoue->nbDemande != 0){
-        for(int i=0;i<ressourceLoue->nbDemande;i++){
+        int i = 0;
+        int cmpt = ressourceLoue->nbDemande;
+        while(cmpt> 0 && i<NBSITEMAX){
             if(ressourceLoue->tabDemande[i].idSite != 0){
                 printf("\n  - [Site %d] : %d cpu, %d Go ",  
                     ressourceLoue->tabDemande[i].idSite, 
@@ -115,7 +117,9 @@ void afficherRessourcesLoue(Requete_s *ressourceLoue){
                 }else{
                     printf("[mode partagé]");
                 }
+                --cmpt;
             }
+            i++;
         }
     }else{
         printf(" Aucune");
@@ -235,8 +239,6 @@ void updateRessourceLoueLocal(Requete_s *r, Requete_s *ressourceLoue){
                 y++;
             }
         }
-        
-
     }
 }
 
@@ -320,28 +322,23 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue){
             while(i<NBSITEMAX){
                 if(inputId == ressourceLoue->tabDemande[i].idSite){
                     perror(BRED "Erreur : Vous avez déja reserver des ressources sur ce site. Il faut libérer les ressources reservé avant de faire une nouvelle demande.\n" reset);
-                    
-                    r->nbDemande--; // on annule la demande
                     return -1;
                 }
                 i++;
             }
         }
-        r->nbDemande++;
+       
         if(r->nbDemande > NBSITEMAX){ // NBSITEMAX car c'est le nombre de site max
             printf(BRED "Erreur : le nombre de demande ne peux pas être supérieur au nombre de site.\n" reset);
-            
-            r->nbDemande--; // on annule la demande
             return -1;
         }else{
         
             if(inputMode == 2 || inputMode == 1){
                 // on place les données demandé dans la structure
-                r->tabDemande[r->nbDemande - 1] = {inputId, inputMode, inputCpu, inputSto};
+                r->tabDemande[r->nbDemande] = {inputId, inputMode, inputCpu, inputSto};
+                r->nbDemande++;
             }else{
                 perror(BRED "Erreur : le mode doit être 1 pour le <mode exclusif> ou 2 pour le <mode partagé>" reset);
-                
-                r->nbDemande--; // on annule la demande
                 return -1;
             }
     
@@ -589,4 +586,5 @@ void fermerClient(int idClient, int numSemNotif, struct SystemState_s *p_att, Re
         perror(BRED "Erreur : shmdt -> lors du détachement du segment mémoire." reset);
         exit(1);
     }
+    exit(1);
 }
