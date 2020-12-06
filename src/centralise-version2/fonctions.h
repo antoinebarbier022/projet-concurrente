@@ -171,8 +171,6 @@ int demandeValide(SystemState_s *s, Requete_s *r);
  */
 int initTableauSemSites(int sem_id, SystemState_s *s);
 
-// on initialise le sembuf
-// retourne le nombre d'opérations
 /**
  * \fn    initOp(struct sembuf *op, Requete_s *r)
  * \brief Cette fonction initialise la structure sembuf avec toutes les opérations que l'on souhaite faire sur les sémaphores
@@ -185,6 +183,19 @@ int initTableauSemSites(int sem_id, SystemState_s *s);
  */
 int initOp(struct sembuf *op, Requete_s *r);
 
+/**
+ * \fn    emmetreNotif(int idTabSem)
+ * \brief Emmetre une notification
+ *        Pour emmettre une notification, cette fonction prend en paramètre l'identifiant du tableau de sémaphores 
+ *        des notification et fait un SETVAL de 1 sur tous les sémaphores
+ * \param [in] idTabSem : identifiant du tableau de sémaphore
+ * \return -1 si erreur, 1 sinon
+ */
 int emmetreNotif(int idTabSem);
 
+/**
+ * \fn    fermerClient
+ * \brief Cette fonction se charge de supprimer le client de l'état du système
+ *        Remarque : les sémaphores rendent automatiquement les ressources reservé par le client (grâce au SEM_UNDO)
+ */
 void fermerClient(int idClient, int numSemNotif, struct SystemState_s* p_att, Requete_s *ressourceLoue, int shm_id, int sem_id, int sem_idNotif);
