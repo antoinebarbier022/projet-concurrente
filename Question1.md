@@ -27,6 +27,8 @@ Pour faire une réservation, un client doit réserver au minimum 1 cpu sur le si
 
 Ainsi, il ne peut y avoir plus de clients que de cpu en mode exclusif sur un site donné.
 
+Quand un client réserve des cpu partagés, il réserve des "unités de cpu". Donc quand un utilisateur reserve plusieurs cpu partagé, les unités de cpu demandé peuvent être prise sur un cpu. 
+
 
 
 ### La structure de l'état du système
@@ -95,5 +97,3 @@ Du coté du server, on a :
 ### Le protocole d’échange à distance utilisé
 
 Le protocole d'échange utilisé dans notre architecture est le protocole TCP, comme demandé dans la consigne du projet.
-
-- - 
