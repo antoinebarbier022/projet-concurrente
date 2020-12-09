@@ -350,7 +350,7 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s
             if(inputId <= s->nbSites && inputId > 0){
                 if(inputMode == 1){ // en exclusif
                     if(inputCpu <= s->sites[inputId-1].cpu && inputCpu > 0){
-                        if(inputSto < s->sites[inputId-1].sto && inputSto >= 0){
+                        if(inputSto <= s->sites[inputId-1].sto && inputSto >= 0){
                             //ok
                         }else{
                             printf(BRED "Erreur : nombre de Go de stockage non valide\n" reset);
@@ -361,8 +361,8 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s
                         erreur = 1; // impossible car le nombre de cpu ne pourra jamais être offert
                     }
                 }else{ // en partagé
-                    if(inputCpu <= s->sites[inputId- 1].cpu*CPUSHARED && inputCpu >= 0){
-                        if(inputSto < s->sites[inputId- 1].sto*CPUSHARED && inputSto >= 0){
+                    if(inputCpu <= s->sites[inputId- 1].cpu*CPUSHARED && inputCpu > 0){
+                        if(inputSto <= s->sites[inputId- 1].sto*CPUSHARED && inputSto >= 0){
                             //ok
                         }else{
                             printf(BRED "Erreur : nombre de Go de stockage non valide\n" reset);
