@@ -321,13 +321,25 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s
             if(ressourceLoue->nbDemande > 0){
                 int i=0;
                 while(i<NBSITEMAX){
-                    while(inputId == ressourceLoue->tabDemande[i].idSite){
+                    if(inputId == ressourceLoue->tabDemande[i].idSite){
                         printf(BRED "Erreur : Vous avez déja reserver des ressources sur ce site. Il faut libérer les ressources reservé avant de faire une nouvelle demande.\n" reset);
                         erreur = 1;
                     }
                     i++;
                 }
             }
+            if(r->nbDemande > 0){
+                int i=0;
+                while(i<r->nbDemande){
+                    if(inputId == r->tabDemande[i].idSite){
+                        printf(BRED "Erreur : Vous venez de demander des ressources sur ce site.\n" reset);
+                        erreur = 1;
+                    }
+                    i++;
+                }
+            }
+
+
             // mode incorect
             if(!(inputMode == 2 || inputMode == 1)){
                 printf(BRED "Erreur : le mode doit être 1 pour le <mode exclusif> ou 2 pour le <mode partagé>\n" reset);
@@ -375,14 +387,35 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s
     
 }
 
-int saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue){
+int saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue, SystemState_s *etatSysteme){
     int inputIdSite;
-    printf("\n\nSur quelle site veux-tu libérer les ressources ? \nSite : ");
-    cin >> inputIdSite;
-    if(!cin){
-        printf(BRED "Erreur : entrée non attendu" reset);
-        return -1;
-    }else{
+    int erreur;
+    int sortie = 0; // pour sortir sans remplir la demande
+    do{
+        erreur = 0;
+        printf("\n\nSur quelle site veux-tu libérer les ressources ? \nSite : ");
+        cin >> inputIdSite;
+        if(!cin){
+            printf(BRED "Erreur : entrée non attendu\n" reset);
+            return -1;
+        }
+        // si le site n'est pas valide 
+        if(inputIdSite > etatSysteme->nbSites && inputIdSite <= 0){
+            printf(BRED "Erreur : ID du site non valide\n" reset);
+            erreur = 1;
+        }
+
+        // on peut pas mettre 2 sites pareil dans une demande de libération
+        for(int i=0;i<r->nbDemande;i++){
+            if(r->tabDemande[i].idSite == inputIdSite){
+                printf(BRED "Erreur : Impossible de demander deux libérations sur le même site\n" reset);
+                sortie = 1;
+            }
+        }
+    }while(erreur);
+
+    
+    if(sortie == 0){
         int i = 0;
         int trouve = 0;
         while(!trouve && i<NBSITEMAX){
@@ -398,8 +431,19 @@ int saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue){
             }
             i++;
         }
+
+        if(trouve == 0){
+            return -1;
+        }else{
+            return 1;
+        }
+    }else{
+        return 1;
     }
-    return 1;
+
+
+    
+
 }
 
 int demandeRessourceValide(SystemState_s *s, Requete_s *r){

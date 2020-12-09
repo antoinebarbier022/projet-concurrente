@@ -116,9 +116,10 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s
  *        On vérifie aussi que le site en question est en cours de réservation, sinon on renvoie une erreur
  * \param [out] r : On modifie la requête de l'utilisateur pour ajouter sa nouvelle demande de libération
  * \param [in] ressourceLoue : Contient toutes les réservations de l'utilisateur
+ *  * \param [in] etatSysteme : pour vérifier que les demandes ne sont pas impossible
  * \return 1 ,sinon si il y a une erreur : -1
  */
-int saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue);
+int saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue, SystemState_s *etatSysteme);
 
 /**
  * \fn    demandeRessourceValide(SystemState_s *s, Requete_s *r)

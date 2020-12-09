@@ -126,6 +126,7 @@ int main(int argc, char const *argv[]){
 
     // pour gérer le ctrl-c
     signal(SIGINT, signal_callback_handler);
+    signal(SIGQUIT, signal_callback_handler);
 
     if(argc !=4){
         printf(BRED "lancement : ./client nomClient ip port\n" reset);
@@ -255,6 +256,14 @@ int main(int argc, char const *argv[]){
         attenteTypeAction = 1; // pour l'affichage
             requete.type = saisieTypeAction();
         attenteTypeAction = 0; // pour l'affichage
+
+        // si on a déja louer tout ce qui était proposé
+        if(ressourceLoue.nbDemande == etatSysteme.nbSites){
+            if(requete.type == 1){
+                printf(BWHT "Information : Tu as déjà reservé des ressources sur chacun des sites proposé.\n" reset);
+                requete.type = 4; // autre chose que les actions possible afin de reposer la question
+            }
+        }
         
         if(requete.type == 1 || requete.type == 2){
             int continuer = 1;
@@ -262,25 +271,27 @@ int main(int argc, char const *argv[]){
                 if(requete.type == 1){
                     continuerDemande = 1; // pour l'affichage dans le thread
 
-                    // on verifie en même temps que le site n'est pas déja louer
-                    if(saisieDemandeRessource(&requete, &ressourceLoue, &etatSysteme) == -1){ // on saisie une demande
-                        printf(BRED "Erreur : Saisie de la reservation non valide\n" reset);
-                        // si on est ici c'est qu'il y a un gros problème car sinon ça redemande à l'utilisateur sa requête
+                    
+                        if(saisieDemandeRessource(&requete, &ressourceLoue, &etatSysteme) == -1){ // on saisie une demande
+                            printf(BRED "Erreur : Saisie de la reservation non valide\n" reset);
+                            // si on est ici c'est qu'il y a un gros problème car sinon ça redemande à l'utilisateur sa requête
 
-                        // on quitte proprement
-                        if(close(dS)  == 0){
-                            printf(BRED "\nFermeture de la socket connecté au server" reset);
-                        }
-                        if(close(dSNotif) == 0){
-                            printf(BRED "\nFermeture de la socket connecté au server" reset);
-                        }
-                        exit(0);
-                    } 
+                            // on quitte proprement
+                            if(close(dS)  == 0){
+                                printf(BRED "\nFermeture de la socket connecté au server" reset);
+                            }
+                            if(close(dSNotif) == 0){
+                                printf(BRED "\nFermeture de la socket connecté au server" reset);
+                            }
+                            exit(0);
+                        } 
+                    
                 }else{
                     if(ressourceLoue.nbDemande <=0){
                         printf(BRED "Erreur : Avant de pouvoir libérer des ressources, il faut en louer\n" reset);
                         
                         // on switch vers une demande
+                        resetRequete(&requete);
                         requete.type = 1;
                         if(saisieDemandeRessource(&requete, &ressourceLoue, &etatSysteme) == -1){ // on saisie une demande
                             printf(BRED "Erreur : Saisie de la reservation non valide\n" reset);
@@ -298,9 +309,12 @@ int main(int argc, char const *argv[]){
                     }else{
                         continuerDemande = 2; // pour l'affichage dans le thread
                         // on verifie en même temps que le site est bien déja louer
-                        if(saisieDemandeLiberation(&requete, &ressourceLoue) == -1){ // on saisie une demande
-                            printf(BRED "Erreur : Saisie de la libération non valide\n" reset);
-                            
+                        if(requete.nbDemande == ressourceLoue.nbDemande){
+                            printf(BWHT "Information : Tu as déjà fait toutes les demande qui était possible de faire.\n" reset);
+                        }else{
+                            if(saisieDemandeLiberation(&requete, &ressourceLoue, &etatSysteme) == -1){ // on saisie une demande
+                                printf(BRED "Erreur : Saisie de la libération non valide\n" reset);
+                                
                                 // si on est ici c'est qu'il y a un gros problème car sinon ça redemande à l'utilisateur sa requête
                                 // on quitte proprement
                                 if(close(dS)  == 0){
@@ -311,11 +325,12 @@ int main(int argc, char const *argv[]){
                                 }
                                 exit(0);
 
-                        } 
+                            } 
+                        }
+
                     }
 
                 }
-
 
                 printf("Faire une autre demande ? (Y/n) : ");
                 char autreDemande[15];
@@ -323,7 +338,7 @@ int main(int argc, char const *argv[]){
                 if(!cin){
                     printf(BRED "Erreur : La saisie est incorect\n" reset);
                     printf(BRED "         On considère que vous ne souhaitez pas faire d'autre demandes.\n" reset);
-                    
+                    sleep(2); // temps pour voir le message d'erreur et pour comprendre son erreur
                     continuer = 0;
                     
                 }else{
@@ -331,6 +346,7 @@ int main(int argc, char const *argv[]){
                         // on vérifie que le nombre de demande n'est pas supérieur au nombre de site
                         if(requete.nbDemande >= etatSysteme.nbSites){ // NBSITEMAX car c'est le nombre de site max
                             printf(BWHT "Information : le nombre de demande ne peux pas être supérieur au nombre de site disponible.\n" reset);
+                            sleep(2); // temps pour voir le message d'erreur et pour comprendre son erreur
                             continuer = 0;
                         }else{
                             continuer = 1;
@@ -352,10 +368,11 @@ int main(int argc, char const *argv[]){
             // on envoie au server cette requête
             printf(BWHT);
                 printf("\nEnvoie de la requête au server ...\n");
+                sleep(1); // pour permettre de voir les messages précédent (sinon la notif va les effacer)
                 printf("\nEn attente de la disponibilité des ressources demandé ...\n");
             printf(reset);
 
-            sleep(1); // pour permettre de voir les messages précédent (sinon la notif va les effacer)
+            
 
             // mettre un mutex plutot que ces variables
 
@@ -384,18 +401,9 @@ int main(int argc, char const *argv[]){
     
 
     // fermer la sockets
-    if(close(dS) == 0){
-        printf("fermeture socket parent réussi\n");
-    }else{
-        printf("erreur : fermeture socket parent\n");
-    }
+    close(dS);
 
-    if(close(dSNotif) == 0){
-        printf("fermeture socket notif réussi\n");
-    }else{
-        printf("erreur : fermeture socket notif\n");
-    }
-
+    close(dSNotif);
 
     return 0;
 }

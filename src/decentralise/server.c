@@ -110,7 +110,7 @@ void* notification(void* p){
 }
 
 void* terminerProgramme(void* p){
-    key_t cle = ftok("ipc.txt", 'e');
+    key_t cle = ftok("IPC/ipc.txt", 'e');
     while(1){
         // si jamais un des objets ipc est tué, on arrete le programme
         if(semctl(sem_idNotif, 0, GETVAL) == -1 || semctl(sem_id, 0, GETVAL) == -1 ||  shmget(cle, sizeof(SystemState_s), 0666) == -1){
@@ -142,6 +142,7 @@ void* terminerProgramme(void* p){
 int main(int argc, char const *argv[])
 {
     signal(SIGINT, signal_callback_handler);
+    signal(SIGQUIT, signal_callback_handler);
     if(argc !=2){
         printf("lancement : ./server port\n");
         exit(0);
@@ -159,17 +160,15 @@ int main(int argc, char const *argv[])
     }
 
     // identification des clés pour les objets IPC
-    key_t cle = ftok("ipc.txt", 'e');                 // récuperer l'identifiant du segment mémoire
-    key_t cle_sem = ftok("ipc.txt", 'u');             // récuperer l'identifiant du tableau sémaphores site
-    key_t cle_semNotif = ftok("notif.txt", 'n');    // récuperer l'identifiant du tableau sémaphores  notification
+    key_t cle = ftok("IPC/ipc.txt", 'e');                 // récuperer l'identifiant du segment mémoire
+    key_t cle_sem = ftok("IPC/ipc.txt", 'u');             // récuperer l'identifiant du tableau sémaphores site
+    key_t cle_semNotif = ftok("IPC/notif.txt", 'n');    // récuperer l'identifiant du tableau sémaphores  notification
     
     // création du segment mémoire pour l'état du système
     shm_id = shmget(cle, sizeof(SystemState_s), IPC_CREAT|0666); 
     if(shm_id == -1) {
         perror(BRED "Erreur [shmget] : La création du segment mémoire" reset);
         return -1;
-    }else{
-        printf("Création du segment mémoire [%d]\n",shm_id);
     }
 
     // création du tableau de sémaphores des ressources des sites
@@ -234,8 +233,6 @@ int main(int argc, char const *argv[])
     if(dS == -1){
         printf("Erreur : Création de la socket\n");
         exit(0);
-    }else{
-        printf("Création de la socket réussie\n");
     }
     struct sockaddr_in ad;
     ad.sin_family = AF_INET;
@@ -250,8 +247,6 @@ int main(int argc, char const *argv[])
     if(res == -1){
         printf("Erreur : listen\n");
         exit(0);
-    }else{
-        printf("Ecoute \n");
     }
 
     struct sockaddr_in adClient;
@@ -263,12 +258,10 @@ int main(int argc, char const *argv[])
     while(mavariable){
         dSClient = accept(dS,(struct sockaddr*)&adClient,&lgAdr);
         if(dSClient == -1){
-            printf("Erreur : Accept\n");
+            printf(BRED "Erreur : accept\n" reset);
             close(dS);
             close(dSClient);
             exit(0);
-        }else{
-            printf("Connexion accepté %d\n",dSClient);
         }
         pid = fork();
         if(pid == 0){
@@ -280,8 +273,6 @@ int main(int argc, char const *argv[])
                 close(dSClient);
                 close(dSNotif);
                 exit(0);
-            }else{
-                printf("Création de la socket de notif\n");
             }
             struct sockaddr_in adS;
             adS.sin_family = AF_INET;
@@ -305,8 +296,6 @@ int main(int argc, char const *argv[])
                 close(dSClient);
                 close(dSNotif);
                 exit(0);
-            }else{
-                printf("Ecoute \n");
             }
 
             dSNotif = accept(dSNotif,(struct sockaddr*)&adS,&lgAN);
@@ -319,7 +308,6 @@ int main(int argc, char const *argv[])
                 printf("\naccept\n");
             }
 
-            
     
         
 
@@ -420,8 +408,21 @@ int main(int argc, char const *argv[])
                     printf(reset);
                     // cette fonction supprime et fait appel à exit
                     fermerClient(idClient, numSemNotif, p_att, &ressourceLoue ,shm_id, sem_id, sem_idNotif);
+                    afficherSysteme(&etatSysteme);
                 }else{
-                    printf("requête reçu\n");
+                    printf(BWHT);
+                        switch (requete.type){
+                        case 1:
+                            printf("%s viens d'envoyer une demande de ressource !\n", nomClient);
+                            break;
+                        case 2:
+                            printf("%s viens d'envoyer une demande de libération !\n", nomClient);
+                            break;
+                        case 3:
+                            printf("%s viens d'envoyer une demande de déconnexion !\n", nomClient);
+                            break;
+                        }
+                    printf(reset);
                 }
                 
                 
@@ -458,11 +459,10 @@ int main(int argc, char const *argv[])
             printf(BWHT);
                 printf("%s viens de quitter le server !\n", nomClient);
             printf(reset);
-            if(close(dSClient) == 0){
-                printf("fermeture socket réussi\n");
-            }
+            close(dSClient);
             // cette fonction supprime et fait appel à exit
             fermerClient(idClient, numSemNotif, p_att, &ressourceLoue ,shm_id, sem_id, sem_idNotif);
+            afficherSysteme(&etatSysteme);
 
         }else{
             
@@ -471,12 +471,12 @@ int main(int argc, char const *argv[])
     }
 
     if(pid == 0){ // processus fils
-        printf("j'ai fini mon boulot de fils\n");
+        printf("Fin du programme fils\n");
         if(close(dS) == 0){
-            printf(BRED "fermeture socket réussi\n" reset);
+            printf(BRED "Fermeture socket réussi\n" reset);
         }
         if(close(dSClient) == 0){
-            printf(BRED "fermeture socket réussi\n" reset);
+            printf(BRED "Fermeture socket réussi\n" reset);
         }
     }else{ // si je suis le parent car seul le parent peut détruire les objets IPC
         // détachement du segment mémoire
