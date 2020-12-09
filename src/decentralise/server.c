@@ -304,8 +304,6 @@ int main(int argc, char const *argv[])
                 close(dSClient);
                 close(dSNotif);
                 exit(0);
-            }else{
-                printf("\naccept\n");
             }
 
     
@@ -316,7 +314,7 @@ int main(int argc, char const *argv[])
             recv(dSClient, &nomClient, sizeof(nomClient),0);
                 
             printf(BWHT);
-                printf("%s viens de ce connecter au server !\n", nomClient);
+                printf("%s viens de se connecter au server !\n", nomClient);
             printf(reset);
 
             // J'associe mon client avec un id et un sémaphore
@@ -450,7 +448,7 @@ int main(int argc, char const *argv[])
                     // Quand il y a une notif tous les semaphores sont à 1
                     // le code qui suit est l'emission d'une notification
                     if(emmetreNotif(sem_idNotif)== -1){
-                        perror(BRED "Erreur : lors de l'envoie des notifications" reset);
+                        perror(BRED "Erreur : lors de l'envoi des notifications" reset);
                     }
                 }
             }

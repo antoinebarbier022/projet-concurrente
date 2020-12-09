@@ -302,7 +302,7 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s
     int erreur;
     do{
         erreur = 0; // il n'y a pas d'erreur
-        printf("\nDemande de ressource : ");
+        printf("\nDemande de ressources : ");
         cin >> inputId >> inputMode >> inputCpu >> inputSto;
         //printf("\n");
         if(!cin){
@@ -322,7 +322,7 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s
                 int i=0;
                 while(i<NBSITEMAX){
                     if(inputId == ressourceLoue->tabDemande[i].idSite){
-                        printf(BRED "Erreur : Vous avez déja reserver des ressources sur ce site. Il faut libérer les ressources reservé avant de faire une nouvelle demande.\n" reset);
+                        printf(BRED "Erreur : Vous avez déjà reserver des ressources sur ce site. Il faut libérer les ressources reservé avant de faire une nouvelle demande.\n" reset);
                         erreur = 1;
                     }
                     i++;
@@ -332,7 +332,7 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s
                 int i=0;
                 while(i<r->nbDemande){
                     if(inputId == r->tabDemande[i].idSite){
-                        printf(BRED "Erreur : Vous venez de demander des ressources sur ce site.\n" reset);
+                        printf(BRED "Erreur : Vous avez déjà demander un reservation des ressources sur ce site.\n" reset);
                         erreur = 1;
                     }
                     i++;
@@ -342,7 +342,7 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s
 
             // mode incorect
             if(!(inputMode == 2 || inputMode == 1)){
-                printf(BRED "Erreur : le mode doit être 1 pour le <mode exclusif> ou 2 pour le <mode partagé>\n" reset);
+                printf(BRED "Erreur : le mode doit être 1 <mode exclusif> ou 2 <mode partagé>\n" reset);
                 erreur = 1;
             }
 
@@ -393,7 +393,7 @@ int saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue, SystemState_
     int sortie = 0; // pour sortir sans remplir la demande
     do{
         erreur = 0;
-        printf("\n\nSur quelle site veux-tu libérer les ressources ? \nSite : ");
+        printf("\n\nSur quel site veux-tu libérer les ressources ? \nSite : ");
         cin >> inputIdSite;
         if(!cin){
             printf(BRED "Erreur : entrée non attendu\n" reset);
@@ -516,7 +516,7 @@ int demandeValide(SystemState_s *s, Requete_s *r){
         
     }else{
         if(demandeLiberationValide(s,r) == -1){
-            printf(BRED "Erreur : La demande de libération n'est pas valide.\n" reset);
+            printf(BRED "Erreur : La demande de libérations n'est pas valide.\n" reset);
             return -1;
         }else{
             return 1;
@@ -626,7 +626,7 @@ int emmetreNotif(int idTabSem){
     egCtrl.val =1;
     for(int i=0;i<NBCLIENTMAX;i++){
         if(semctl(idTabSem, i, SETVAL, egCtrl) == -1){  // On SETVAL pour le sémaphore numero 0
-            perror(BRED "Erreur : initialisation [sémaphore 0]" reset);
+            perror(BRED "Erreur : initialisation [sémaphore]" reset);
             return -1;
         }
     }
@@ -647,7 +647,7 @@ void fermerClient(int idClient, int numSemNotif, struct SystemState_s *p_att, Re
     // envoie une notification si on a des ressources à libérer avant de quitter
     if(ressourceLoue->nbDemande>0){
         if(emmetreNotif(sem_idNotif) == -1){
-            perror(BRED "Erreur : lors de l'envoie des notifications" reset);
+            perror(BRED "Erreur : lors de l'envoi des notifications" reset);
         }
     }
 

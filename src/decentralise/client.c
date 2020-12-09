@@ -104,17 +104,17 @@ void* affichage(void* p){
         afficherSysteme(&message.etatSysteme);
 
         if(enAttenteRessource == 1){
-            printf("\nEn attente de la disponibilité des ressources demandé ...\n");
+            printf("\nEn attente de la disponibilité des ressources demandées ...\n");
         }else{
             afficherRessourcesLoue(&ressourceLoue);
             if(attenteTypeAction == 1){
-                printf("\nType action possible : \n - 1 : Demande de réservation");
-                printf("\n - 2 : Demande de libération\n - 3 : Quitter \nType action : \n");
+                printf("\nType action possible : \n - 1 : Demande de réservations");
+                printf("\n - 2 : Demande de libérations\n - 3 : Quitter \nType action : \n");
             }else{
                 if(continuerDemande == 1){
                     printf("\nContinuer la demande de ressources : \n");
                 }else if(continuerDemande == 2){
-                    printf("\nContinuer la demande de libération : \n");
+                    printf("\nContinuer la demande de libérations : \n");
                 }
             }
         }
@@ -151,7 +151,7 @@ int main(int argc, char const *argv[]){
 
     // demander une connexion
     if(connect(dS, (struct sockaddr *)&serverAddr, lgAdr) != 0){
-        printf(BRED "Erreur : La socket n'a pas pu ce connecter au server (vérifie le port utilisé)\n" reset);
+        printf(BRED "Erreur : La socket n'a pas pu se connecter au server (vérifie le port utilisé)\n" reset);
         exit(0);
     }
 
@@ -310,7 +310,7 @@ int main(int argc, char const *argv[]){
                         continuerDemande = 2; // pour l'affichage dans le thread
                         // on verifie en même temps que le site est bien déja louer
                         if(requete.nbDemande == ressourceLoue.nbDemande){
-                            printf(BWHT "Information : Tu as déjà fait toutes les demande qui était possible de faire.\n" reset);
+                            printf(BWHT "Information : Tu as déjà fait toutes les demandes qu'il était possible de faire.\n" reset);
                         }else{
                             if(saisieDemandeLiberation(&requete, &ressourceLoue, &etatSysteme) == -1){ // on saisie une demande
                                 printf(BRED "Erreur : Saisie de la libération non valide\n" reset);
@@ -345,7 +345,7 @@ int main(int argc, char const *argv[]){
                     if(strcmp(autreDemande,"Y") == 0){
                         // on vérifie que le nombre de demande n'est pas supérieur au nombre de site
                         if(requete.nbDemande >= etatSysteme.nbSites){ // NBSITEMAX car c'est le nombre de site max
-                            printf(BWHT "Information : le nombre de demande ne peux pas être supérieur au nombre de site disponible.\n" reset);
+                            printf(BWHT "Information : le nombre de demande ne peux pas être supérieur au nombre de sites disponible.\n" reset);
                             sleep(2); // temps pour voir le message d'erreur et pour comprendre son erreur
                             continuer = 0;
                         }else{
@@ -367,9 +367,9 @@ int main(int argc, char const *argv[]){
             // Maintenant que la requete est remplie :
             // on envoie au server cette requête
             printf(BWHT);
-                printf("\nEnvoie de la requête au server ...\n");
+                printf("\nEnvoi de la requête au server ...\n");
                 sleep(1); // pour permettre de voir les messages précédent (sinon la notif va les effacer)
-                printf("\nEn attente de la disponibilité des ressources demandé ...\n");
+                printf("\nEn attente de la disponibilité des ressources demandées ...\n");
             printf(reset);
 
             
@@ -395,7 +395,7 @@ int main(int argc, char const *argv[]){
     requete.type = 3;
     send(dS,&requete,sizeof(struct Requete_s),0);
 
-    printf("Au revoir\n");
+    printf(BWHT"\nAu revoir !\n" reset);
     
 
     
