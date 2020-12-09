@@ -104,9 +104,10 @@ int saisieTypeAction();
  *        On vérifie aussi que la demande saisie n'est pas déja reservé avec la structure qui contient toutes les ressources loué par l'utilisateur
  * \param [out] r : On modifie la requête de l'utilisateur pour ajouter sa nouvelle demande
  * \param [in] ressourceLoue : Contient toutes les réservations de l'utilisateur
+ * \param [in] etatSysteme : pour vérifier que les demandes ne sont pas impossible
  * \return 1 ,sinon si il y a une erreur : -1
  */
-int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue);
+int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s *etatSysteme);
 
 /**
  * \fn    saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue)

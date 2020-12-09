@@ -215,11 +215,11 @@ void updateRessourceLoueLocal(Requete_s *r, Requete_s *ressourceLoue){
             while(!trouve && y<NBSITEMAX){
                 // dès qu'on trouve une place dans le tableau, on insère
                 if(ressourceLoue->tabDemande[y].idSite == -1){ // on a obligatoirement du cpu
-                    printf("site %d : %d cpu, %d sto, mode : %d\n",
+                    /*printf("site %d : %d cpu, %d sto, mode : %d\n",
                     r->tabDemande[i].idSite,
                     r->tabDemande[i].cpu,
                     r->tabDemande[i].sto,
-                    r->tabDemande[i].mode);
+                    r->tabDemande[i].mode);*/
                     ressourceLoue->tabDemande[y] = r->tabDemande[i];
                     ressourceLoue->nbDemande++;
                     
@@ -294,51 +294,85 @@ int saisieTypeAction(){
     
 }
 
-int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue){
+int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s *s){
     int inputId, inputMode, inputCpu, inputSto;
     printf("\n\nLa demande doit correspondre à ce format :");
     printf(BHWHT" idSite mode cpu stockage\n" reset);
     printf("Pour le mode : [1 = exclusif] et [2 = partagé]\n");
-    
-    printf("Demande de ressource : ");
-    cin >> inputId >> inputMode >> inputCpu >> inputSto;
-    printf("\n");
-    if(!cin){
-        // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
-        printf(BRED "\nErreur : La demande doit correspondre à ce format : id mode cpu sto\n");
-            printf("\tid   : l'identifiant du site \n");
-            printf("\tmode : Exclusif (1) ou Partagé (2)\n");
-            printf("\tcpu  : Le nombre de CPU demandé \n");
-            printf("\tsto  : Le nombre de Go de stockage demandé \n");
-            printf(reset);
-        return -1;
-    }else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
-        //printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
-        // Sinon on entre la demande
+    int erreur;
+    do{
+        erreur = 0; // il n'y a pas d'erreur
+        printf("\nDemande de ressource : ");
+        cin >> inputId >> inputMode >> inputCpu >> inputSto;
+        //printf("\n");
+        if(!cin){
+            // Si le format n'est pas correct on indique la bonne utilisation à l'utilisateur on on quitte le programme
+            printf(BRED "Erreur : La demande doit correspondre à ce format : id mode cpu sto\n");
+                printf("\tid   : l'identifiant du site \n");
+                printf("\tmode : Exclusif (1) ou Partagé (2)\n");
+                printf("\tcpu  : Le nombre de CPU demandé \n");
+                printf("\tsto  : Le nombre de Go de stockage demandé \n\n");
+                printf(reset);
+            return -1;
+        }else{ // le format est correct mais cela ne veut pas dire que la demande l'est.
+            //printf("[Demande de ressource] Site %d : %d cpu, %.1f Go en mode %d\n", inputId, inputCpu, inputSto, inputMode);
+            // Sinon on entre la demande
 
-        if(ressourceLoue->nbDemande > 0){
-            int i=0;
-            while(i<NBSITEMAX){
-                while(inputId == ressourceLoue->tabDemande[i].idSite){
-                    perror(BRED "Erreur : Vous avez déja reserver des ressources sur ce site. Il faut libérer les ressources reservé avant de faire une nouvelle demande.\n" reset);
-                    printf("Demande de ressource : ");
-                    cin >> inputId >> inputMode >> inputCpu >> inputSto;
-                    //return -1;
+            if(ressourceLoue->nbDemande > 0){
+                int i=0;
+                while(i<NBSITEMAX){
+                    while(inputId == ressourceLoue->tabDemande[i].idSite){
+                        printf(BRED "Erreur : Vous avez déja reserver des ressources sur ce site. Il faut libérer les ressources reservé avant de faire une nouvelle demande.\n" reset);
+                        erreur = 1;
+                    }
+                    i++;
                 }
-                i++;
+            }
+            // mode incorect
+            if(!(inputMode == 2 || inputMode == 1)){
+                printf(BRED "Erreur : le mode doit être 1 pour le <mode exclusif> ou 2 pour le <mode partagé>\n" reset);
+                erreur = 1;
+            }
+
+            // test la validité du site
+            if(inputId <= s->nbSites && inputId > 0){
+                if(inputMode == 1){ // en exclusif
+                    if(inputCpu <= s->sites[inputId-1].cpu && inputCpu >= 0){
+                        if(inputSto < s->sites[inputId-1].sto && inputSto >= 0){
+                            //ok
+                        }else{
+                            printf(BRED "Erreur : nombre de Go de stockage non valide\n" reset);
+                            erreur = 1;
+                        }
+                    }else{
+                        printf(BRED "Erreur : nombre de CPU non valide\n" reset);
+                        erreur = 1; // impossible car le nombre de cpu ne pourra jamais être offert
+                    }
+                }else{ // en partagé
+                    if(inputCpu <= s->sites[inputId- 1].cpu*CPUSHARED && inputCpu >= 0){
+                        if(inputSto < s->sites[inputId- 1].sto*CPUSHARED && inputSto >= 0){
+                            //ok
+                        }else{
+                            printf(BRED "Erreur : nombre de Go de stockage non valide\n" reset);
+                            erreur = 1;
+                        }
+                    }else{
+                        printf(BRED "Erreur : nombre de CPU non valide\n" reset);
+                        erreur = 1; // impossible car le nombre de cpu ne pourra jamais être offert
+                    }
+                }
+            }else{
+                printf(BRED "Erreur : ID du site non valide\n" reset);
+                erreur = 1; // impossible de traiter la demande car l'id du site est invalide
             }
         }
-        
-        while(!(inputMode == 2 || inputMode == 1)){
-            perror(BRED "Erreur : le mode doit être 1 pour le <mode exclusif> ou 2 pour le <mode partagé>" reset);
-            printf("Demande de ressource : ");
-            cin >> inputId >> inputMode >> inputCpu >> inputSto;
-        }
-    }
+    }while(erreur);
+    
     // on place les données demandé dans la structure
     r->tabDemande[r->nbDemande] = {inputId, inputMode, inputCpu, inputSto};
     r->nbDemande++;
     return 1;
+    
 }
 
 int saisieDemandeLiberation(Requete_s *r, Requete_s *ressourceLoue){

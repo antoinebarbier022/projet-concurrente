@@ -38,15 +38,11 @@ void signal_callback_handler(int signum){
     
     // envoyer requete au server pour dire qu'on quitte
     if(close(dS) == 0){
-        printf("fermeture socket parent réussi\n");
-    }else{
-        printf("erreur : fermeture socket parent\n");
+        printf(BRED "\nFermeture de la socket connecté au server" reset);
     }
 
     if(close(dSNotif) == 0){
-        printf("fermeture socket notif réussi\n");
-    }else{
-        printf("erreur : fermeture socket notif\n");
+        printf(BRED "\nFermeture de la socket connecté au server pour les notifications\n" reset);
     }
     printf(BRED "\nFin du programme : Fermeture du client via ctrl-c\n" reset);
     exit(signum);
@@ -63,17 +59,21 @@ void* affichage(void* p){
     while(1){
         // reception de la notification
         // on lit d'abord le type pour savoir quoi faire
-        if(recv(dSNotif, &message, sizeof(int),0) == 0){
+        int res = recv(dSNotif, &message, sizeof(int),0);
+        if(res == 0){ // la socket à été fermé
+            printf(BRED "\nErreur : Le server ne répond plus\n" reset);
             if(close(dSNotif) == 0){
-                printf("fermeture socket notif réussi\n");
+                printf(BRED "\nFermeture socket des notifs réussi" reset);
             }
             if(close(dS) == 0){
-                printf("fermeture socket parent réussi\n");
+                printf(BRED "\nFermeture socket réussi\n" reset);
             }
-            printf(BRED "\nErreur : Le server ne répond plus\n" reset);
+            exit(0);
+        }else if( res == -1){
+            printf(BRED "\nErreur : recv notif = -1 \n" reset);
             exit(0);
         }
-        printf("message type : %d",message.type);
+
         switch (message.type){
         case 1:
             enAttenteRessource = 0; // la demande à été accepté
@@ -92,20 +92,7 @@ void* affichage(void* p){
             }
             break;
         
-        case -1:
-            printf("Message : Vous êtes déconnecté du server suite à un problème technique.\n");
-            if(close(dS) == 0){
-                printf("fermeture socket parent réussi\n");
-            }else{
-                printf("erreur : fermeture socket parent\n");
-            }
-
-            if(close(dSNotif) == 0){
-                printf("fermeture socket notif réussi\n");
-            }else{
-                printf("erreur : fermeture socket notif\n");
-            }
-            exit(0);
+        default:
             break;
         }
 
@@ -135,14 +122,13 @@ void* affichage(void* p){
 }
 
 
-int main(int argc, char const *argv[])
-{
+int main(int argc, char const *argv[]){
 
-        // pour gérer le ctrl-c
+    // pour gérer le ctrl-c
     signal(SIGINT, signal_callback_handler);
 
     if(argc !=4){
-        printf("lancement : ./client nomClient ip port\n");
+        printf(BRED "lancement : ./client nomClient ip port\n" reset);
         exit(0);
     }
     struct sockaddr_in serverAddr;
@@ -150,10 +136,8 @@ int main(int argc, char const *argv[])
     // Creer une socket
     dS = socket(PF_INET, SOCK_STREAM,0);
     if(dS == -1){
-        printf("Erreur : Création de la socket\n");
+        printf(BRED "Erreur : Création de la socket\n" reset);
         exit(0);
-    }else{
-        printf("Création de la socket réussie\n");
     }
 
     // assigner IP et PORT
@@ -166,43 +150,40 @@ int main(int argc, char const *argv[])
 
     // demander une connexion
     if(connect(dS, (struct sockaddr *)&serverAddr, lgAdr) != 0){
-        printf("Erreur : la connexion avec le server à échoué\n");
+        printf(BRED "Erreur : La socket n'a pas pu ce connecter au server (vérifie le port utilisé)\n" reset);
         exit(0);
-    }else{
-        printf("Connexion avec le server réussie\n");
     }
 
     // Communication
-            int port;
             
             // Creer une socket pour les notif
             dSNotif = socket(PF_INET, SOCK_STREAM,0);
             if(dSNotif == -1){
-                printf("Erreur : Création de la socket pour envoyer les notifs\n");
+                printf(BRED "Erreur : Création de la socket pour envoyer les notifs\n" reset );
                 exit(0);
-            }else{
-                printf("Création de la socket pour envoyer les notif\n");
             }
+
+            int port;
+            recv(dS, &port, sizeof(int),0);
+
             struct sockaddr_in serverNotifAddr;
             // assigner IP et PORT
             serverNotifAddr.sin_family = AF_INET;
             serverNotifAddr.sin_addr.s_addr = inet_addr(argv[2]);    // IP
-            //serverNotifAddr.sin_port = htons(atoi(port));          // PORT
-            recv(dS, &serverNotifAddr.sin_port, sizeof(serverNotifAddr.sin_port),0);
+            serverNotifAddr.sin_port = port;
 
             socklen_t lgA = sizeof(struct sockaddr_in);
             // demander une connexion
+            //printf("port = %d\n", port);
+            //printf("port = %d\n", serverNotifAddr.sin_port);
             if(connect(dSNotif, (struct sockaddr *)&serverNotifAddr, lgA) != 0){
-                printf("Erreur : la connexion avec le server à échoué\n");
-            }else{
-                printf("Connexion avec le client réussie\n");
+                printf(BRED "Erreur : La connexion avec le server à échoué (socket notif)\n" reset);
+                close(dS);
+                close(dSNotif);
+                exit(0);
             }
             
 
-
-
-
-    
 
     // envoie du nom de l'utilisateur au server
     char nomClient[30];
@@ -237,30 +218,12 @@ int main(int argc, char const *argv[])
 
 
 
-
-
-
-
-
-
-    
-
-
-
-
     // Création threads
     pthread_t thread;
     if(pthread_create (&thread, NULL, affichage, NULL)){
-        printf("Erreur: Impossible de créer le thread d'affichage");
+        printf(BRED "Erreur: Impossible de créer le thread d'affichage" reset);
         return -1;
     }
-
-
-
-
-
-
-
 
 
 
@@ -300,26 +263,57 @@ int main(int argc, char const *argv[])
                     continuerDemande = 1; // pour l'affichage dans le thread
 
                     // on verifie en même temps que le site n'est pas déja louer
-                    if(saisieDemandeRessource(&requete, &ressourceLoue) == -1){ // on saisie une demande
+                    if(saisieDemandeRessource(&requete, &ressourceLoue, &etatSysteme) == -1){ // on saisie une demande
                         printf(BRED "Erreur : Saisie de la reservation non valide\n" reset);
-                        
-                        // ici faire en sorte de redemander correctement
+                        // si on est ici c'est qu'il y a un gros problème car sinon ça redemande à l'utilisateur sa requête
+
+                        // on quitte proprement
+                        if(close(dS)  == 0){
+                            printf(BRED "\nFermeture de la socket connecté au server" reset);
+                        }
+                        if(close(dSNotif) == 0){
+                            printf(BRED "\nFermeture de la socket connecté au server" reset);
+                        }
+                        exit(0);
                     } 
                 }else{
                     if(ressourceLoue.nbDemande <=0){
                         printf(BRED "Erreur : Avant de pouvoir libérer des ressources, il faut en louer\n" reset);
-                    
-                        // ici faire en sorte de redemander correctement
-
-                    }
-                    continuerDemande = 2; // pour l'affichage dans le thread
-                    // on verifie en même temps que le site est bien déja louer
-                    if(saisieDemandeLiberation(&requete, &ressourceLoue) == -1){ // on saisie une demande
-                        printf(BRED "Erreur : Saisie de la libération non valide\n" reset);
                         
-                        // ici faire en sorte de redemander correctement
+                        // on switch vers une demande
+                        requete.type = 1;
+                        if(saisieDemandeRessource(&requete, &ressourceLoue, &etatSysteme) == -1){ // on saisie une demande
+                            printf(BRED "Erreur : Saisie de la reservation non valide\n" reset);
+                                // si on est ici c'est qu'il y a un gros problème car sinon ça redemande à l'utilisateur sa requête
+                                // on quitte proprement
+                                if(close(dS)  == 0){
+                                    printf(BRED "\nFermeture de la socket connecté au server" reset);
+                                }
+                                if(close(dSNotif) == 0){
+                                    printf(BRED "\nFermeture de la socket connecté au server" reset);
+                                }
+                                exit(0);
+                        } 
 
-                    } 
+                    }else{
+                        continuerDemande = 2; // pour l'affichage dans le thread
+                        // on verifie en même temps que le site est bien déja louer
+                        if(saisieDemandeLiberation(&requete, &ressourceLoue) == -1){ // on saisie une demande
+                            printf(BRED "Erreur : Saisie de la libération non valide\n" reset);
+                            
+                                // si on est ici c'est qu'il y a un gros problème car sinon ça redemande à l'utilisateur sa requête
+                                // on quitte proprement
+                                if(close(dS)  == 0){
+                                    printf(BRED "\nFermeture de la socket connecté au server" reset);
+                                }
+                                if(close(dSNotif) == 0){
+                                    printf(BRED "\nFermeture de la socket connecté au server" reset);
+                                }
+                                exit(0);
+
+                        } 
+                    }
+
                 }
 
 
@@ -328,10 +322,10 @@ int main(int argc, char const *argv[])
                 cin >> autreDemande;
                 if(!cin){
                     printf(BRED "Erreur : La saisie est incorect\n" reset);
+                    printf(BRED "         On considère que vous ne souhaitez pas faire d'autre demandes.\n" reset);
                     
-                    // ici faire en sorte de redemander correctement
-
-
+                    continuer = 0;
+                    
                 }else{
                     if(strcmp(autreDemande,"Y") == 0){
                         // on vérifie que le nombre de demande n'est pas supérieur au nombre de site
@@ -361,6 +355,8 @@ int main(int argc, char const *argv[])
                 printf("\nEn attente de la disponibilité des ressources demandé ...\n");
             printf(reset);
 
+            sleep(1); // pour permettre de voir les messages précédent (sinon la notif va les effacer)
+
             // mettre un mutex plutot que ces variables
 
             enAttenteRessource = 1; // en attente des ressource
@@ -373,17 +369,18 @@ int main(int argc, char const *argv[])
             
 
             
-        resetRequete(&requete);
+            resetRequete(&requete);
+            sleep(1); // pour permettre de laisser un peu de temps avant de redemander une saisie
+
         }
         // pour quitter on envoie la requête avec le type 3
     }
     requete.type = 3;
     send(dS,&requete,sizeof(struct Requete_s),0);
-    printf("Message fermeture envoyé\n");
+
     printf("Au revoir\n");
     
-    
-    //send(dS,&requete,sizeof(struct Requete_s),0);
+
     
 
     // fermer la sockets

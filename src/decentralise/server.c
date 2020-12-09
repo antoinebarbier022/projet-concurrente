@@ -38,26 +38,32 @@ pid_t pid = 1;
 int demandeRessourceAccepte;
 
 void signal_callback_handler(int signum){
-    // Destruction du segment mémoire
-
-
-    shmctl(shm_id,IPC_RMID, NULL);
-    semctl(sem_id,0,IPC_RMID);
-    semctl(sem_idNotif,0,IPC_RMID);
-
     if(close(dS) == 0){
-        printf("fermeture socket parent réussi\n");
-    }
-    if(close(dSNotif) == 0){
-        printf("fermeture socket notif réussi\n");
+        printf(BRED "fermeture socket réussi\n" reset);
     }
     if(close(dSClient) == 0){
-        printf("fermeture socket fils réussi\n");
+        printf(BRED "fermeture socket réussi\n" reset);
     }
+    if(close(dSNotif) == 0){
+        printf(BRED "fermeture socket réussi\n" reset);
+    }
+    if(pid != 0){ 
+ // si je suis le parent car seul le parent peut détruire les objets IPC
 
+        // détachement du segment mémoire
+        int dtres = shmdt(p_att); 
+        if(dtres == -1){
+            perror(BRED "Erreur : shmdt -> lors du détachement du segment mémoire." reset);
+        }
 
-    cout << "\nDestruction Segment mémoire ..." << endl;
-    cout << "Fermeture du server\n" << endl;
+        // Destruction du segment mémoire
+        printf(BRED "\n\nDestruction des objets IPC ...\n" reset);
+        printf(BRED "Fermeture du server\n" reset);
+        shmctl(shm_id,IPC_RMID,NULL);
+        semctl(sem_id,0,IPC_RMID);
+        semctl(sem_idNotif,0,IPC_RMID);
+        
+    }
     exit(signum);
 }
 
@@ -240,7 +246,7 @@ int main(int argc, char const *argv[])
     bind(dS, (struct sockaddr*)&ad, sizeof(ad));
 
     // Passer la socket en mode écoute
-    int res = listen(dS, 10);
+    int res = listen(dS, NBSITEMAX);
     if(res == -1){
         printf("Erreur : listen\n");
         exit(0);
@@ -258,26 +264,21 @@ int main(int argc, char const *argv[])
         dSClient = accept(dS,(struct sockaddr*)&adClient,&lgAdr);
         if(dSClient == -1){
             printf("Erreur : Accept\n");
+            close(dS);
+            close(dSClient);
             exit(0);
         }else{
             printf("Connexion accepté %d\n",dSClient);
         }
         pid = fork();
         if(pid == 0){
-            printf("Hello from Child! ma variable : %d\n",mavariable);
-            // Création du thread qui s'occupe de l'affichage quand il y a une notification
-            //if(pthread_create (&thread, NULL, affichage, NULL)){
-            //    printf("Erreur [pthread_create]: Création du thread Affichage");
-            //} 
-            printf("j'ai créer le thread\n");
-
-
 
             // je veux maintenant une socket pour les notif
-
             dSNotif = socket(PF_INET, SOCK_STREAM,0);
             if(dSNotif == -1){
                 printf("Erreur : Création de la socket de notif\n");
+                close(dSClient);
+                close(dSNotif);
                 exit(0);
             }else{
                 printf("Création de la socket de notif\n");
@@ -293,20 +294,30 @@ int main(int argc, char const *argv[])
             socklen_t lgAN = sizeof(struct sockaddr_in);
             getsockname(dSNotif, (struct sockaddr*)&adS, &lgAN);
             int port = (int)adS.sin_port;
-            send(dSClient, &adS.sin_port, sizeof(adS.sin_port),0);
-            printf("port : %d\n", port);
+            send(dSClient, &port, sizeof(int),0);
+
             // j'attent le port et l'ip client pour me connecter à lui avec une socket
             
             // Passer la socket en mode écoute
-            int res = listen(dSNotif, 10);
+            int res = listen(dSNotif, NBSITEMAX);
             if(res == -1){
                 printf("Erreur : listen\n");
+                close(dSClient);
+                close(dSNotif);
                 exit(0);
             }else{
                 printf("Ecoute \n");
             }
 
             dSNotif = accept(dSNotif,(struct sockaddr*)&adS,&lgAN);
+            if(dSNotif <=0){
+                printf("\nproblème accept\n");
+                close(dSClient);
+                close(dSNotif);
+                exit(0);
+            }else{
+                printf("\naccept\n");
+            }
 
             
     
@@ -400,9 +411,20 @@ int main(int argc, char const *argv[])
             while(requete.type != 3){
 
                 // reception de la requête du client
-                recv(dSClient, &requete, sizeof(requete),0);
+                if(recv(dSClient, &requete, sizeof(requete),0) == 0){
+                    close(dS);
+                    close(dSNotif);
+                    // Fermeture du client, on le supprime du segment mémoire
+                    printf(BWHT);
+                        printf("%s viens de quitter le server !\n", nomClient);
+                    printf(reset);
+                    // cette fonction supprime et fait appel à exit
+                    fermerClient(idClient, numSemNotif, p_att, &ressourceLoue ,shm_id, sem_id, sem_idNotif);
+                }else{
+                    printf("requête reçu\n");
+                }
                 
-                printf("requete reçu\n");
+                
                 if(requete.type != 3){
                     // On créer toutes les opérations sembuf  en fonction de la requête
                     lockSysteme(sem_id);
@@ -443,32 +465,20 @@ int main(int argc, char const *argv[])
             fermerClient(idClient, numSemNotif, p_att, &ressourceLoue ,shm_id, sem_id, sem_idNotif);
 
         }else{
-            printf("Hello from Parent!\n");
-            // parent process because return value non-zero. 
+            
+            // processus parent 
         }    
     }
 
-    if(pid == 0){
+    if(pid == 0){ // processus fils
         printf("j'ai fini mon boulot de fils\n");
         if(close(dS) == 0){
-                printf("fermeture socket réussi\n");
+            printf(BRED "fermeture socket réussi\n" reset);
         }
         if(close(dSClient) == 0){
-                printf("fermeture socket réussi\n");
+            printf(BRED "fermeture socket réussi\n" reset);
         }
-    }
-
-
-
-
-
-    
-    printf("j'ai fini mon boulot\n");
-
-
-
-
-    if(pid != 0){ // si je suis le parent car seul le parent peut détruire les objets IPC
+    }else{ // si je suis le parent car seul le parent peut détruire les objets IPC
         // détachement du segment mémoire
         int dtres = shmdt(p_att); 
         if(dtres == -1){
@@ -476,15 +486,14 @@ int main(int argc, char const *argv[])
         }
 
         // Destruction du segment mémoire
+        printf(BRED "\n\nDestruction des objets IPC ...\n" reset);
+        printf(BRED "Fermeture du server\n" reset);
         shmctl(shm_id,IPC_RMID,NULL);
         semctl(sem_id,0,IPC_RMID);
         semctl(sem_idNotif,0,IPC_RMID);
         
-        cout << endl << "Destruction des objets IPC ..." << endl;
-        cout << "Fermeture du server\n" << endl;
     }
-    
-    
+
 
 
     return 0;
