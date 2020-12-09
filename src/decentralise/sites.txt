@@ -1,0 +1,2 @@
+Montpellier : 500 50
+Toulouse    : 10 200
