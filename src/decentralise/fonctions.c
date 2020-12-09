@@ -349,7 +349,7 @@ int saisieDemandeRessource(Requete_s *r, Requete_s *ressourceLoue, SystemState_s
             // test la validité du site
             if(inputId <= s->nbSites && inputId > 0){
                 if(inputMode == 1){ // en exclusif
-                    if(inputCpu <= s->sites[inputId-1].cpu && inputCpu >= 0){
+                    if(inputCpu <= s->sites[inputId-1].cpu && inputCpu > 0){
                         if(inputSto < s->sites[inputId-1].sto && inputSto >= 0){
                             //ok
                         }else{
@@ -555,7 +555,8 @@ int initTableauSemSites(int sem_id, SystemState_s *s){
                     break;
             }
             if(semctl(sem_id, numSem, SETVAL, egCtrl) == -1){  // On SETVAL pour le sémaphore numero 0
-                printf(BRED "Erreur : Initialisation [sémaphore %d]\n",numSem, reset);
+                printf(BRED "Erreur : Initialisation [sémaphore %d]\n",numSem);
+                printf(reset);
                 return -1;
             }
         }
