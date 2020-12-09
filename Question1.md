@@ -29,6 +29,8 @@ Ainsi, il ne peut y avoir plus de clients que de cpu en mode exclusif sur un sit
 
 Quand un client réserve des cpu partagés, il réserve des "unités de cpu". Donc quand un utilisateur reserve plusieurs cpu partagé, les unités de cpu demandé peuvent être prise sur un cpu. 
 
+Une fois qu'un utilisateur quitte la plate-forme, les ressources qu'il à loué sont libéré.
+
 
 
 ### La structure de l'état du système
@@ -77,20 +79,16 @@ Voici les objets IPC que nous utilisont dans ce projet :
 
 ### Les processus et threads
 
-Le système de réservation distribué comprend deux programmes : Un programme qui s’execute sur le server et un programme qui s’execute sur le client. Plusieurs clients différents peuvent se connecter sur le server. Dans la consigne il est noté que le processus server attent la connection des clients puis delègue la suite du travail à ses processus fils. Cela signifie que l'on doit faire une fork dans le programme du server afin que chaque client soit connecter avec un processus fils du server.
+Le système de réservation distribué comprend deux programmes : Un programme qui s’execute sur le server et un programme qui s’execute sur le client. Plusieurs clients différents peuvent se connecter sur le server. Dans la consigne il est noté que le processus server attent la connection des clients puis delègue la suite du travail à ses processus fils. Cela signifie que l'on doit faire une fork dans le programme du server afin que chaque client soit connecté avec un processus fils du server.
 
-Du coté client comme du coté server, notre architecture utilise deux threads : 
+Le client utilise un thread qui permet de receptionner les messages du server et d'afficher la mise à jour de l'état du système.
+Le programme principale du client se charge de récupérer les saisie de l'utilisateur et d'envoyer la requête au server.
 
-- Un thread pour l'affichage du système : il attend de recevoir l'état du server mis à jour.
-- Un thread pour vérifier que l'on est toujours conneté au server : si jamais le server à un problème, ce thread receptionne le message.
+Le server utilise deux threads : 
+- Un thread pour vérifier que les objets ipc n'ont pas été tuer par une entité extérieur.
+- un thread pour envoyé la notification avec le nouvelle état du server au client.
 
-Et on a le programme principale du client qui se charge de récupérer les saisie de l'utilisateur.
-
-Du coté du server, on a :
-
--  le thread qui envoie au client le nouvel état du server après une modification par un client.
-
-- et le programme principale qui récupère les requètes des clients.
+Le programme du server (ici le processus fils) ce charge de récupèrer les requètes des clients et d'executer l'action de la requête reçu.
 
   
 
